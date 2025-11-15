@@ -25,7 +25,7 @@ def compute_diffusive_flux_matrix_entry(f, grad_phi, mesh, mu):
     mu_f = mu 
 
     # Pre-fetch and cache vector components (single memory access per component)
-    vector_E_f = mesh.vector_E_f[f]
+    vector_E_f = mesh.vector_S_f[f]
     vector_d_CE = mesh.vector_d_CE[f]
     E_f_0 = vector_E_f[0]
     E_f_1 = vector_E_f[1]
@@ -47,48 +47,11 @@ def compute_diffusive_flux_matrix_entry(f, grad_phi, mesh, mu):
 @njit(inline="always", cache=True, fastmath=True)
 def compute_diffusive_correction(f, grad_phi, mesh, mu):
     """
-    Compute diffusive correction term with optimized memory access patterns.
-    For orthogonal structured grids, T_f = 0 and skewness = 0, so correction = 0.
+    Compute diffusive correction term.
+    For orthogonal Cartesian grids, T_f = 0 and skewness = 0, so correction is always 0.
     """
-    # Pre-fetch vector components (single array access each)
-    vector_T_f = mesh.vector_T_f[f]
-    T_f_0 = vector_T_f[0]
-    T_f_1 = vector_T_f[1]
-
-    # Early exit for orthogonal grids (structured meshes)
-    if abs(T_f_0) < EPS and abs(T_f_1) < EPS:
-        return 0.0
-
-    # Pre-fetch connectivity
-    P = mesh.owner_cells[f]
-    N = mesh.neighbor_cells[f]
-    muF = mu
-
-    vector_skewness = mesh.vector_skewness[f]
-    d_skew_0 = vector_skewness[0]
-    d_skew_1 = vector_skewness[1]
-
-    # Pre-fetch gradient data (better cache locality)
-    grad_phi_P = grad_phi[P]
-    grad_phi_N = grad_phi[N]
-    gradC_0 = grad_phi_P[0]
-    gradC_1 = grad_phi_P[1]
-    gradN_0 = grad_phi_N[0]
-    gradN_1 = grad_phi_N[1]
-
-    # Single access to interpolation factor
-    g_f = mesh.face_interp_factors[f]
-    grad_f_0 = (1.0 - g_f) * gradC_0 + g_f * gradN_0
-    grad_f_1 = (1.0 - g_f) * gradC_1 + g_f * gradN_1
-
-    # Skewness correction with pre-fetched components
-    skew_dot = grad_f_0 * d_skew_0 + grad_f_1 * d_skew_1
-    grad_f_mark_0 = grad_f_0 + skew_dot * d_skew_0
-    grad_f_mark_1 = grad_f_1 + skew_dot * d_skew_1
-
-    # Manual dot product (Moukalled 15.72)
-    diffDC = -muF * (grad_f_mark_0 * T_f_0 + grad_f_mark_1 * T_f_1)
-    return diffDC
+    # For orthogonal grids, there is no non-orthogonal correction
+    return 0.0
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Boundary faces
@@ -112,8 +75,7 @@ def compute_boundary_diffusive_correction(
     diffFlux_P_b = 0.0
     diffFlux_N_b = 0.0
 
-    E_f = np.ascontiguousarray(mesh.vector_E_f[f])
-    T_f = np.ascontiguousarray(mesh.vector_T_f[f])
+    E_f = np.ascontiguousarray(mesh.vector_S_f[f])
     d_PB = mesh.d_Cb[f]
 
     
@@ -123,12 +85,7 @@ def compute_boundary_diffusive_correction(
         diffFlux_P_b = muF * E_mag / (d_PB)
         diffFlux_N_b = -diffFlux_P_b * bc_val  # explicit orthogonal part
 
-        # --- explicit non-orthogonal correction (FluxV_b) ---
-        grad_P = grad_phi[P]
-        d_skew = np.ascontiguousarray(mesh.vector_skewness[f])
-        grad_P_mark = grad_P + np.dot(grad_P, d_skew)
-        fluxVb = -muF * np.dot(grad_P_mark, T_f)
-        diffFlux_N_b += fluxVb
+        # For orthogonal grids: no non-orthogonal correction (T_f = 0, skewness = 0)
     
     elif bc_type == BC_WALL or bc_type == BC_OBSTACLE:
         # --- wall shear stress ---
@@ -164,7 +121,6 @@ def compute_boundary_diffusive_correction(
 
         # --- explicit non-orthogonal correction (FluxV_b) ---
         #grad_P = grad_phi[P]
-        #d_skew = np.ascontiguousarray(mesh.vector_skewness[f])
         #grad_P_mark = grad_P + np.dot(grad_P, d_skew)
         #fluxVb = -muF * np.dot(grad_P_mark, T_f)
         #diffFlux_N_b += fluxVb
@@ -174,17 +130,12 @@ def compute_boundary_diffusive_correction(
         diffFlux_P_b = muF * E_mag / (d_PB)
         diffFlux_N_b = -diffFlux_P_b * bc_val  # explicit orthogonal part
 
-        # --- explicit non-orthogonal correction (FluxV_b) Moukalled 8.80 ---
-        grad_P = grad_phi[P]
-        d_skew = np.ascontiguousarray(mesh.vector_skewness[f])
-        grad_P_mark = grad_P + np.dot(grad_P, d_skew)
-        fluxVb = -muF * np.dot(grad_P_mark, T_f)
-        diffFlux_N_b += fluxVb 
+        # For orthogonal grids: no non-orthogonal correction 
     elif bc_type == BC_OUTLET:
         grad_v_b = compute_velocity_gradient_least_squares(mesh, U, U, mesh.face_centers[f], U[P], P, f)
         P = mesh.owner_cells[f]
         Sf = np.ascontiguousarray(mesh.vector_S_f[f])
-        E_f = np.ascontiguousarray(mesh.vector_E_f[f])
+        E_f = np.ascontiguousarray(mesh.vector_S_f[f])
         e = E_f / np.linalg.norm(E_f)
         d_Pb_vec = d_PB * e
         v_b = U[P] + np.dot(grad_v_b, d_Pb_vec)
@@ -192,15 +143,10 @@ def compute_boundary_diffusive_correction(
         diffFlux_P_b = muF * E_mag / (d_PB )
         diffFlux_N_b = -diffFlux_P_b * v_b[component_idx] #v_b[component_idx] # explicit orthogonal part
 
-        # --- explicit non-orthogonal correction (FluxV_b) ---
-        grad_P = grad_phi[P]
-        d_skew = np.ascontiguousarray(mesh.vector_skewness[f])
-        grad_P_mark = grad_P + np.dot(grad_P, d_skew)
-        fluxVb = -muF * np.dot(grad_P_mark, T_f)
-        diffFlux_N_b += fluxVb 
-        diffFlux_N_b = 0.0  
+        # For orthogonal grids: no non-orthogonal correction
+        diffFlux_N_b = 0.0
         diffFlux_P_b = 0.0
-        ## no diffusive flux at outlet ferziger 8.10.2 Outlet - grid assumed to be orthogonal to the boundary (this may not be entirely true)
+        ## no diffusive flux at outlet ferziger 8.10.2 Outlet - grid assumed to be orthogonal to the boundary
     
 
     return diffFlux_P_b, diffFlux_N_b

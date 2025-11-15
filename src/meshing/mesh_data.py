@@ -41,18 +41,12 @@ mesh_data_spec = [
     ("neighbor_cells", types.int64[:]),          # Neighbor cell index (–1 for boundary faces)
     ("cell_faces", types.int64[:, :]),           # Padded list of face indices for each cell
 
-    # --- Vector Geometry --- Computed for Over-relaxed approach Moukalled (8.6.4)
-    ("vector_S_f", types.float64[:, :]),         # surface vectors S_f. unit vector n scaled by the face area 
+    # --- Vector Geometry --- For orthogonal Cartesian grids
+    ("vector_S_f", types.float64[:, :]),         # surface vectors S_f = unit_normal * area (serves as both S and E for orthogonal grids)
     ("vector_d_CE", types.float64[:, :]),        # distance vector between centroids of elements C and E (also CF in Moukalled)
-    ("unit_vector_n", types.float64[:, :]),      # unit vector normal to the surface
-    ("unit_vector_e", types.float64[:, :]),      # unit vector e along the direction of d_CE
-    ("vector_E_f", types.float64[:, :]),         # used for the over-relaxed approach
-    ("vector_T_f", types.float64[:, :]),         # used for the over-relaxed approach
-    ("vector_skewness", types.float64[:, :]),    # vector from the intersection point f' (of d_CE and S_f) to the face center f
 
     # --- Interpolation Factors ---
     ("face_interp_factors", types.float64[:]),   # g_f = delta_Pf / delta_PN
-    ("rc_interp_weights", types.float64[:]),     # 1 / (g_f * (1 - g_f) * delta_PN) — used in gradient recon
 
     # --- Topological Masks ---
     ("internal_faces", types.int64[:]),          # Indices of faces with valid neighbor (N >= 0)
@@ -62,10 +56,6 @@ mesh_data_spec = [
     ("boundary_types", types.int64[:, :]),       # BC type per face: [vel_type, p_type]
     ("boundary_values", types.float64[:, :]),    # BC values per face: [u_BC, v_BC, p_BC]
     ("d_Cb", types.float64[:]),                  # Distance from cell center to boundary face center (Moukalled 8.6.8)
-
-    # --- Binary Masks (for fast Numba filtering etc.) ---
-    ("face_boundary_mask", types.int64[:]),      # 1 if face is a boundary, 0 otherwise
-    ("face_flux_mask", types.int64[:]),          # 1 if face is active in flux loops, 0 otherwise
 ]
 
 
@@ -83,20 +73,12 @@ class MeshData2D:
         cell_faces,
         vector_S_f,
         vector_d_CE,
-        unit_vector_n,
-        unit_vector_e,
-        vector_E_f,
-        vector_T_f,
-        vector_skewness,
         face_interp_factors,
-        rc_interp_weights,
         internal_faces,
         boundary_faces,
         boundary_types,
         boundary_values,
         d_Cb,
-        face_boundary_mask,
-        face_flux_mask,
     ):
         # --- Geometry ---
         self.cell_volumes = cell_volumes
@@ -112,15 +94,9 @@ class MeshData2D:
         # --- Vector Geometry ---
         self.vector_S_f = vector_S_f
         self.vector_d_CE = vector_d_CE
-        self.unit_vector_n = unit_vector_n
-        self.unit_vector_e = unit_vector_e
-        self.vector_E_f = vector_E_f
-        self.vector_T_f = vector_T_f
-        self.vector_skewness = vector_skewness
 
         # --- Interpolation Factors ---
         self.face_interp_factors = face_interp_factors
-        self.rc_interp_weights = rc_interp_weights
 
         # --- Topological Info ---
         self.internal_faces = internal_faces
@@ -130,7 +106,3 @@ class MeshData2D:
         self.boundary_types = boundary_types
         self.boundary_values = boundary_values
         self.d_Cb = d_Cb
-
-        # --- Masks ---
-        self.face_boundary_mask = face_boundary_mask
-        self.face_flux_mask = face_flux_mask

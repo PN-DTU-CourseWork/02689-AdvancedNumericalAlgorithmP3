@@ -111,11 +111,9 @@ def _compute_face_geometry(points, face_vertices, owner_cells, neighbor_cells, c
 
 @njit
 def _compute_geometric_factors(n_faces, owner_cells, neighbor_cells,
-                                 cell_centers, face_centers, vector_S_f, face_areas):
-    """Compute geometric factors for FV discretization."""
+                                 cell_centers, face_centers):
+    """Compute geometric factors for FV discretization on Cartesian grids."""
     vector_d_CE = np.zeros((n_faces, 2), dtype=np.float64)
-    unit_vector_n = np.zeros((n_faces, 2), dtype=np.float64)
-    unit_vector_e = np.zeros((n_faces, 2), dtype=np.float64)
     face_interp_factors = np.zeros(n_faces, dtype=np.float64)
     d_Cb = np.zeros(n_faces, dtype=np.float64)
 
@@ -123,23 +121,17 @@ def _compute_geometric_factors(n_faces, owner_cells, neighbor_cells,
         owner = owner_cells[f]
         neighbor = neighbor_cells[f]
 
-        # Unit normal
-        if face_areas[f] > 1e-12:
-            unit_vector_n[f] = vector_S_f[f] / face_areas[f]
-
         if neighbor >= 0:
             # Internal face
             vector_d_CE[f] = cell_centers[neighbor] - cell_centers[owner]
             d_mag = np.sqrt(vector_d_CE[f, 0]**2 + vector_d_CE[f, 1]**2)
 
             if d_mag > 1e-12:
-                unit_vector_e[f] = vector_d_CE[f] / d_mag
-
                 # Distance from owner to face
                 d_Pf = face_centers[f] - cell_centers[owner]
                 delta_Pf = np.sqrt(d_Pf[0]**2 + d_Pf[1]**2)
 
-                # Interpolation factor
+                # Interpolation factor (for Cartesian grid, this is 0.5 for internal faces)
                 face_interp_factors[f] = delta_Pf / d_mag
         else:
             # Boundary face
@@ -147,10 +139,7 @@ def _compute_geometric_factors(n_faces, owner_cells, neighbor_cells,
             d_Cb[f] = np.sqrt(d_boundary[0]**2 + d_boundary[1]**2)
             vector_d_CE[f] = d_boundary
 
-            if d_Cb[f] > 1e-12:
-                unit_vector_e[f] = d_boundary / d_Cb[f]
-
-    return vector_d_CE, unit_vector_n, unit_vector_e, face_interp_factors, d_Cb
+    return vector_d_CE, face_interp_factors, d_Cb
 
 
 def create_structured_mesh_2d(nx: int, ny: int, Lx: float = 1.0, Ly: float = 1.0,
@@ -225,9 +214,9 @@ def create_structured_mesh_2d(nx: int, ny: int, Lx: float = 1.0, Ly: float = 1.0
     )
 
     # 6. Geometric factors
-    vector_d_CE, unit_vector_n, unit_vector_e, face_interp_factors, d_Cb = \
+    vector_d_CE, face_interp_factors, d_Cb = \
         _compute_geometric_factors(n_faces, owner_cells, neighbor_cells,
-                                     cell_centers, face_centers, vector_S_f, face_areas)
+                                     cell_centers, face_centers)
 
     # 7. Boundary conditions (lid-driven cavity specific)
     internal_faces = np.where(neighbor_cells >= 0)[0].astype(np.int64)
@@ -264,20 +253,7 @@ def create_structured_mesh_2d(nx: int, ny: int, Lx: float = 1.0, Ly: float = 1.0
 
     boundary_faces = np.array(boundary_faces_list, dtype=np.int64)
 
-    # 8. Simplified structured mesh: skip non-orthogonality terms
-    vector_E_f = vector_S_f.copy()  # E_f = S_f for orthogonal mesh
-    vector_T_f = np.zeros_like(vector_S_f)  # T_f = 0 for orthogonal mesh
-    vector_skewness = np.zeros_like(face_centers)  # No skewness
-
-    # Rhie-Chow weights
-    rc_interp_weights = np.zeros(n_faces)
-    for f in internal_faces:
-        g_f = face_interp_factors[f]
-        delta_PN = np.linalg.norm(vector_d_CE[f])
-        if delta_PN > 1e-12 and g_f > 1e-12 and (1 - g_f) > 1e-12:
-            rc_interp_weights[f] = 1.0 / (g_f * (1 - g_f) * delta_PN)
-
-    # Cell-face connectivity
+    # 8. Cell-face connectivity
     max_faces = 4  # Quads have 4 faces
     cell_faces = np.full((n_cells, max_faces), -1, dtype=np.int64)
     face_count = np.zeros(n_cells, dtype=np.int32)
@@ -292,12 +268,7 @@ def create_structured_mesh_2d(nx: int, ny: int, Lx: float = 1.0, Ly: float = 1.0
             cell_faces[neighbor, face_count[neighbor]] = f
             face_count[neighbor] += 1
 
-    # Masks
-    face_boundary_mask = np.zeros(n_faces, dtype=np.int64)
-    face_boundary_mask[boundary_faces] = 1
-    face_flux_mask = np.ones(n_faces, dtype=np.int64)
-
-    # Build MeshData2D
+    # 9. Build MeshData2D
     return MeshData2D(
         cell_volumes=np.ascontiguousarray(cell_volumes),
         cell_centers=np.ascontiguousarray(cell_centers),
@@ -308,18 +279,10 @@ def create_structured_mesh_2d(nx: int, ny: int, Lx: float = 1.0, Ly: float = 1.0
         cell_faces=np.ascontiguousarray(cell_faces),
         vector_S_f=np.ascontiguousarray(vector_S_f),
         vector_d_CE=np.ascontiguousarray(vector_d_CE),
-        unit_vector_n=np.ascontiguousarray(unit_vector_n),
-        unit_vector_e=np.ascontiguousarray(unit_vector_e),
-        vector_E_f=np.ascontiguousarray(vector_E_f),
-        vector_T_f=np.ascontiguousarray(vector_T_f),
-        vector_skewness=np.ascontiguousarray(vector_skewness),
         face_interp_factors=np.ascontiguousarray(face_interp_factors),
-        rc_interp_weights=np.ascontiguousarray(rc_interp_weights),
         internal_faces=np.ascontiguousarray(internal_faces),
         boundary_faces=np.ascontiguousarray(boundary_faces),
         boundary_types=np.ascontiguousarray(boundary_types),
         boundary_values=np.ascontiguousarray(boundary_values),
         d_Cb=np.ascontiguousarray(d_Cb),
-        face_boundary_mask=np.ascontiguousarray(face_boundary_mask),
-        face_flux_mask=np.ascontiguousarray(face_flux_mask),
     )

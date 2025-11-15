@@ -28,7 +28,7 @@ def assemble_pressure_correction_matrix(mesh, rho):
     internal_faces = mesh.internal_faces
     owner_cells = mesh.owner_cells
     neighbor_cells = mesh.neighbor_cells
-    vector_E_f = mesh.vector_E_f
+    vector_E_f = mesh.vector_S_f
     vector_d_CE = mesh.vector_d_CE
 
     # ––– internal faces (OPTIMIZED LOOP) –––––––––––––––––––––––––––––––––––
@@ -75,7 +75,6 @@ def pressure_correction_loop_term(mesh, rho, grad_p_prime_face):
     internal_faces = mesh.internal_faces
     owner_cells = mesh.owner_cells
     neighbor_cells = mesh.neighbor_cells
-    vector_T_f = mesh.vector_T_f
 
     # ––– internal faces (OPTIMIZED LOOP) –––––––––––––––––––––––––––––––––––
     for i in range(n_internal):

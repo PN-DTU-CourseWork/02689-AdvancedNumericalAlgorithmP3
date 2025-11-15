@@ -30,7 +30,6 @@ def compute_convective_stencil(
 
     g_f = mesh.face_interp_factors[f]
     d_CE = np.ascontiguousarray(mesh.vector_d_CE[f])
-    d_skew = np.ascontiguousarray(mesh.vector_skewness[f])
 
     # Moukalled 15.72 (negative sign for neighbor handled in matrix assembly)
     Flux_P_f = max(mdot[f], 0)
@@ -46,12 +45,8 @@ def compute_convective_stencil(
     gradN = grad_phi[N]
     grad_f = g_f * gradN + (1 - g_f) * gradC
 
-    # For orthogonal structured grids, d_skew = 0, so grad_f_mark = grad_f
-    skew_mag_sq = d_skew[0] * d_skew[0] + d_skew[1] * d_skew[1]
-    if skew_mag_sq > 1e-14:
-        grad_f_mark = grad_f + np.dot(grad_f, d_skew)
-    else:
-        grad_f_mark = grad_f
+    # For orthogonal Cartesian grids, skewness = 0, so no correction needed
+    grad_f_mark = grad_f
 
     d_Cf = d_CE * g_f
 
@@ -118,7 +113,7 @@ def compute_boundary_convective_flux(f, mesh, rho, mdot, u_field, phi, p_b, bc_t
     """
     P = mesh.owner_cells[f]
     Sf = np.ascontiguousarray(mesh.vector_S_f[f])
-    E_f = np.ascontiguousarray(mesh.vector_E_f[f])
+    E_f = np.ascontiguousarray(mesh.vector_S_f[f])
     d_Cb = np.ascontiguousarray(mesh.d_Cb[f])
     e = E_f / np.linalg.norm(E_f)
     d_Cb_vec = d_Cb * e

@@ -110,8 +110,7 @@ def assemble_diffusion_convection_matrix(
         
         # Pre-fetch geometric vectors (static data)
         S_b = np.ascontiguousarray(mesh.vector_S_f[f])
-        E_f = np.ascontiguousarray(mesh.vector_E_f[f])
-        T_f = np.ascontiguousarray(mesh.vector_T_f[f])
+        E_f = np.ascontiguousarray(mesh.vector_S_f[f])
         mag_S_b = np.linalg.norm(S_b)
         mag_E_f = np.linalg.norm(E_f) + EPS
         d_Cb = mesh.d_Cb[f]
