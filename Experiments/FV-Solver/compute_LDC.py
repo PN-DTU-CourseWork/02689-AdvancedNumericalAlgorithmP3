@@ -12,7 +12,7 @@ data_dir.mkdir(parents=True, exist_ok=True)
 
 # %% Configure and solve
 solver = FVSolver(Re=100.0, nx=64, ny=64, alpha_uv=0.6, alpha_p=0.2)
-solver.solve(tolerance=1e-5, max_iter=5000)
+solver.solve(tolerance=1e-5, max_iter=500)
 
 # Access results via dataclass attributes
 print(f"Converged: {solver.metadata.converged}")
