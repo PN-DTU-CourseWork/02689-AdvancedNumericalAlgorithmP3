@@ -11,6 +11,7 @@ data/*
 !data/README.md
 !data/.gitkeep
 !data/post_processed
+!data/validation/
 
 # Uv stuff 
 uv.lock

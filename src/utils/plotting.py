@@ -1,4 +1,4 @@
-"""Plotting utilities for spectral method visualizations.
+"""Plotting utilities and style configuration.
 
 This module provides utilities for:
 - Automatic style application (seaborn + custom mplstyle)
@@ -14,6 +14,8 @@ from pathlib import Path
 from typing import Any
 
 import matplotlib.pyplot as plt
+import seaborn as sns
+import pandas as pd
 
 
 # ==============================================================================
@@ -23,17 +25,12 @@ import matplotlib.pyplot as plt
 
 def _apply_styles():
     """Apply seaborn style and custom utils.mplstyle."""
-    # Apply seaborn style first
-    try:
-        plt.style.use("seaborn-v0_8")
-    except OSError:
-        # Fallback if seaborn style not available
-        pass
+    # Set seaborn theme 
+    sns.set_theme()
 
     # Then apply custom style on top
     style_path = Path(__file__).parent / "utils.mplstyle"
-    if style_path.exists():
-        plt.style.use(str(style_path))
+    plt.style.use(str(style_path))
 
 
 # Apply styles when module is imported

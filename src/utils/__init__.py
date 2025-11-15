@@ -1,11 +1,42 @@
-"""Utility modules for data handling, plotting, and CLI.
+"""Utility modules for plotting and project management."""
 
-Import conveniences:
-- from utils import datatools  # For data operations
-- from utils import plotting    # For plotting operations
-- from utils import cli         # For command-line argument parsing
-"""
+from pathlib import Path
+from . import plotting
+from .ldc_plotter import LDCPlotter
+from .ghia_validator import GhiaValidator
+from .data_io import (
+    load_run_data,
+    load_fields,
+    load_metadata,
+    load_multiple_runs,
+)
 
-from . import datatools, plotting, cli
+__all__ = [
+    "plotting",
+    "get_project_root",
+    "LDCPlotter",
+    "GhiaValidator",
+    "load_run_data",
+    "load_fields",
+    "load_metadata",
+    "load_multiple_runs",
+]
 
-__all__ = ["datatools", "plotting", "cli"]
+
+def get_project_root() -> Path:
+    """Get project root directory.
+
+    Returns
+    -------
+    Path
+        Project root directory (contains pyproject.toml).
+    """
+    # Start from this file and search upward for pyproject.toml
+    current = Path(__file__).resolve().parent
+    while current != current.parent:
+        if (current / "pyproject.toml").exists():
+            return current
+        current = current.parent
+
+    # Fallback: assume standard structure
+    return Path(__file__).resolve().parent.parent.parent
