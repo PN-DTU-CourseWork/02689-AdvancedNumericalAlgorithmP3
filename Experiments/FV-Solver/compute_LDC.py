@@ -21,13 +21,13 @@ data_dir.mkdir(parents=True, exist_ok=True)
 
 solver = FVSolver(
     Re=100.0,       # Reynolds number
-    nx=64,          # Grid cells in x-direction
-    ny=64,          # Grid cells in y-direction
+    nx=32,          # Grid cells in x-direction
+    ny=32,          # Grid cells in y-direction
     alpha_uv=0.6,   # Velocity under-relaxation factor
     alpha_p=0.2     # Pressure under-relaxation factor
 )
 
-print(f"Solver configured: Re={solver.Re}, Grid={solver.nx}x{solver.ny}")
+print(f"Solver configured: Re={solver.config.Re}, Grid={solver.config.nx}x{solver.config.ny}")
 
 # %%
 # Run SIMPLE Iteration

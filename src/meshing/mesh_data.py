@@ -36,12 +36,10 @@ mesh_data_spec = [
     ("face_areas", types.float64[:]),            # Face area magnitudes |S_f| (lengths in 2D)
     ("face_centers", types.float64[:, :]),       # Face centroids x_f [n_faces, 2]
 
-    # --- Connectivity --- 
+    # --- Connectivity ---
     ("owner_cells", types.int64[:]),             # Owner cell index for each face
     ("neighbor_cells", types.int64[:]),          # Neighbor cell index (–1 for boundary faces)
     ("cell_faces", types.int64[:, :]),           # Padded list of face indices for each cell
-    ("face_vertices", types.int64[:, :]),        # Vertex indices (2 per face)
-    ("vertices", types.float64[:, :]),           # Vertex coordinates (shape: [n_vertices, 2])
 
     # --- Vector Geometry --- Computed for Over-relaxed approach Moukalled (8.6.4)
     ("vector_S_f", types.float64[:, :]),         # surface vectors S_f. unit vector n scaled by the face area 
@@ -59,7 +57,6 @@ mesh_data_spec = [
     # --- Topological Masks ---
     ("internal_faces", types.int64[:]),          # Indices of faces with valid neighbor (N >= 0)
     ("boundary_faces", types.int64[:]),          # Indices of faces with N = –1
-    ("boundary_patches", types.int64[:]),        # Patch ID per boundary face (–1 for internal)
 
     # --- Boundary Conditions ---
     ("boundary_types", types.int64[:, :]),       # BC type per face: [vel_type, p_type]
@@ -84,8 +81,6 @@ class MeshData2D:
         owner_cells,
         neighbor_cells,
         cell_faces,
-        face_vertices,
-        vertices,
         vector_S_f,
         vector_d_CE,
         unit_vector_n,
@@ -97,7 +92,6 @@ class MeshData2D:
         rc_interp_weights,
         internal_faces,
         boundary_faces,
-        boundary_patches,
         boundary_types,
         boundary_values,
         d_Cb,
@@ -114,8 +108,6 @@ class MeshData2D:
         self.owner_cells = owner_cells
         self.neighbor_cells = neighbor_cells
         self.cell_faces = cell_faces
-        self.face_vertices = face_vertices
-        self.vertices = vertices
 
         # --- Vector Geometry ---
         self.vector_S_f = vector_S_f
@@ -133,7 +125,6 @@ class MeshData2D:
         # --- Topological Info ---
         self.internal_faces = internal_faces
         self.boundary_faces = boundary_faces
-        self.boundary_patches = boundary_patches
 
         # --- BCs ---
         self.boundary_types = boundary_types

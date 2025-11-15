@@ -48,17 +48,23 @@ def compute_diffusive_flux_matrix_entry(f, grad_phi, mesh, mu):
 def compute_diffusive_correction(f, grad_phi, mesh, mu):
     """
     Compute diffusive correction term with optimized memory access patterns.
+    For orthogonal structured grids, T_f = 0 and skewness = 0, so correction = 0.
     """
+    # Pre-fetch vector components (single array access each)
+    vector_T_f = mesh.vector_T_f[f]
+    T_f_0 = vector_T_f[0]
+    T_f_1 = vector_T_f[1]
+
+    # Early exit for orthogonal grids (structured meshes)
+    if abs(T_f_0) < EPS and abs(T_f_1) < EPS:
+        return 0.0
+
     # Pre-fetch connectivity
     P = mesh.owner_cells[f]
     N = mesh.neighbor_cells[f]
-    muF = mu 
-    
-    # Pre-fetch vector components (single array access each)
-    vector_T_f = mesh.vector_T_f[f]
+    muF = mu
+
     vector_skewness = mesh.vector_skewness[f]
-    T_f_0 = vector_T_f[0]
-    T_f_1 = vector_T_f[1]
     d_skew_0 = vector_skewness[0]
     d_skew_1 = vector_skewness[1]
 
@@ -69,7 +75,7 @@ def compute_diffusive_correction(f, grad_phi, mesh, mu):
     gradC_1 = grad_phi_P[1]
     gradN_0 = grad_phi_N[0]
     gradN_1 = grad_phi_N[1]
-    
+
     # Single access to interpolation factor
     g_f = mesh.face_interp_factors[f]
     grad_f_0 = (1.0 - g_f) * gradC_0 + g_f * gradN_0

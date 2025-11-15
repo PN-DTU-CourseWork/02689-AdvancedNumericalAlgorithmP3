@@ -34,7 +34,7 @@ def compute_convective_stencil(
 
     # Moukalled 15.72 (negative sign for neighbor handled in matrix assembly)
     Flux_P_f = max(mdot[f], 0)
-    Flux_N_f = -max(-mdot[f],0) 
+    Flux_N_f = -max(-mdot[f],0)
 
 
     # stuff for TVD and other HO schemes
@@ -45,7 +45,14 @@ def compute_convective_stencil(
     gradC = grad_phi[P]
     gradN = grad_phi[N]
     grad_f = g_f * gradN + (1 - g_f) * gradC
-    grad_f_mark = grad_f + np.dot(grad_f, d_skew)
+
+    # For orthogonal structured grids, d_skew = 0, so grad_f_mark = grad_f
+    skew_mag_sq = d_skew[0] * d_skew[0] + d_skew[1] * d_skew[1]
+    if skew_mag_sq > 1e-14:
+        grad_f_mark = grad_f + np.dot(grad_f, d_skew)
+    else:
+        grad_f_mark = grad_f
+
     d_Cf = d_CE * g_f
 
 

@@ -254,7 +254,6 @@ def create_structured_mesh_2d(nx: int, ny: int, Lx: float = 1.0, Ly: float = 1.0
     # 4. Boundary conditions
     internal_faces = np.where(neighbor_cells >= 0)[0].astype(np.int64)
     boundary_faces_list = []
-    boundary_patches = np.full(n_faces, -1, dtype=np.int64)
     boundary_types = np.full((n_faces, 2), -1, dtype=np.int64)
     boundary_values = np.zeros((n_faces, 3), dtype=np.float64)
 
@@ -267,7 +266,6 @@ def create_structured_mesh_2d(nx: int, ny: int, Lx: float = 1.0, Ly: float = 1.0
         if edge in boundary_lines_dict:
             patch_tag, patch_name = boundary_lines_dict[edge]
             boundary_faces_list.append(f)
-            boundary_patches[f] = patch_tag
 
             # Lid-driven cavity BCs
             if patch_name == "top":
@@ -321,8 +319,6 @@ def create_structured_mesh_2d(nx: int, ny: int, Lx: float = 1.0, Ly: float = 1.0
         owner_cells=np.ascontiguousarray(owner_cells),
         neighbor_cells=np.ascontiguousarray(neighbor_cells),
         cell_faces=np.ascontiguousarray(cell_faces),
-        face_vertices=np.ascontiguousarray(face_vertices),
-        vertices=np.ascontiguousarray(points),
         vector_S_f=np.ascontiguousarray(vector_S_f),
         vector_d_CE=np.ascontiguousarray(vector_d_CE),
         unit_vector_n=np.ascontiguousarray(unit_vector_n),
@@ -334,7 +330,6 @@ def create_structured_mesh_2d(nx: int, ny: int, Lx: float = 1.0, Ly: float = 1.0
         rc_interp_weights=np.ascontiguousarray(rc_interp_weights),
         internal_faces=np.ascontiguousarray(internal_faces),
         boundary_faces=np.ascontiguousarray(boundary_faces),
-        boundary_patches=np.ascontiguousarray(boundary_patches),
         boundary_types=np.ascontiguousarray(boundary_types),
         boundary_values=np.ascontiguousarray(boundary_values),
         d_Cb=np.ascontiguousarray(d_Cb),
