@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Tuple
 
 from .base_solver import LidDrivenCavitySolver
-from .datastructures import FVinfo
+from datastructures import FVinfo
 
 
 class FVSolver(LidDrivenCavitySolver):
@@ -74,7 +74,7 @@ class FVSolver(LidDrivenCavitySolver):
 
     def _create_output_dataclasses(self, residual_history, final_iter_count, is_converged):
         """Create FV-specific output dataclasses."""
-        from .datastructures import FVFields, TimeSeries, FVinfo
+        from datastructures import FVFields, TimeSeries, FVinfo
 
         # Extract residuals
         u_residuals = [r['u'] for r in residual_history]

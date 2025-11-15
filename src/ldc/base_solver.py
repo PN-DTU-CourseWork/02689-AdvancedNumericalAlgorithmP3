@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from typing import Tuple
 import numpy as np
 
-from .datastructures import Info
+from datastructures import Info
 
 
 class LidDrivenCavitySolver(ABC):
@@ -64,6 +64,11 @@ class LidDrivenCavitySolver(ABC):
 
         # Let subclass do solver-specific initialization
         self._setup_solver_specifics()
+
+    @property
+    def Re(self) -> float:
+        """Reynolds number."""
+        return self.config.Re
 
     def _get_grid_size(self) -> Tuple[int, int]:
         """Return grid dimensions (nx, ny) for this solver.
