@@ -111,11 +111,10 @@ html_theme_options = {
     "navbar_align": "left",
     "header_links_before_dropdown": 5,
     "show_toc_level": 2,  # Only show 2 levels in the page TOC
-    "primary_sidebar_end": [],  # Remove everything from left sidebar end
-    "secondary_sidebar_items": ["page-toc"],  # Only show page TOC in right sidebar
+    "secondary_sidebar_items": [],  # Hide right sidebar
 }
 
-# Hide the left sidebar completely on all pages
+# Show page TOC in left sidebar
 html_sidebars = {
-    "**": [],  # No left sidebar components
+    "**": ["page-toc"],
 }
