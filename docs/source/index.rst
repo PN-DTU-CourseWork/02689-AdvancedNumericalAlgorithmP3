@@ -1,21 +1,22 @@
-University Project Template
-===========================
+Advanced Numerical Algorithms - Project 3
+==========================================
 
-A template for numerical computing projects with documentation and examples.
+Lid-Driven Cavity Flow: Finite Volume and Spectral Methods
 
-**Authors:** Your Name
+**Author:** Philip Korsager Nickel
 
-This documentation provides both example scripts and API reference for the numerical utilities package.
+This documentation provides computational experiments, API reference, and implementation
+details for solving the lid-driven cavity problem using finite volume and spectral methods.
 
-For the full codebase, please visit the `GitHub repository <https://github.com/yourusername/yourproject>`.
+For the full codebase, please visit the `GitHub repository <https://github.com/s214960/AdvancedNumericalAlgorithms-Project3>`.
 
 Contents
 --------
 
 :doc:`example_gallery/index`
-   Gallery of example scripts demonstrating the use of the package.
+   Gallery of computational experiments and visualizations for lid-driven cavity flow.
 :doc:`api_reference`
-   Complete API reference for the ``numutils`` package.
+   Complete API reference for finite volume, spectral methods, and utility modules.
 
 .. toctree::
    :maxdepth: 1
@@ -34,8 +35,11 @@ Contents
 Installation
 ------------
 
-The package requires Python 3.12+ and uses ``uv`` for dependency management::
+The package requires Python 3.12 and uses ``uv`` for dependency management.
 
-    curl -LsSf https://astral.sh/uv/install.sh | sh
-    uv sync
+Run the setup script from the project root::
+
+    bash setup.sh
+
+This will create a virtual environment and install all dependencies including PETSc and petsc4py.
 

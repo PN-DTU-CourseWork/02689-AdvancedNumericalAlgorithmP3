@@ -1,5 +1,9 @@
 # Project 3: Lid-Driven Cavity Flow
 
+## Documentation
+
+📚 [Read the full documentation](https://02689-advancednumericalalgorithmproject3.readthedocs.io/en/latest/)
+
 ## Installation
 
 Run the setup script from project root:
