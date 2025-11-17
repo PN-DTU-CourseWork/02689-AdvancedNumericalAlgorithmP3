@@ -11,8 +11,6 @@ from fv.discretization.convection.upwind import (
     compute_boundary_convective_flux,
 )
 
-BC_DIRICHLET = 1
-
 EPS = 1.0e-14
 
 @njit(cache=True, fastmath=True, nogil=True, parallel=False, boundscheck=False, error_model='numpy')

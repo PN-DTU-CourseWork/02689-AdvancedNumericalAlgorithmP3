@@ -1,8 +1,6 @@
 import numpy as np
 from numba import njit
 
-BC_DIRICHLET = 1
-
 @njit(inline="always")
 def MUSCL(r):
     return max(0.0, min(2.0, 2.0 * r, 0.5 * (1 + r))) if r > 0 else 0.0
@@ -105,13 +103,9 @@ def compute_boundary_convective_flux(f, mesh, rho, mdot, u_field, phi, p_b, bc_t
     """
     First-order upwind boundary convection flux for velocity component.
 
-    For BC_DIRICHLET (all velocity boundaries), the face value is known.
+    All velocity boundaries use Dirichlet BC with known face values.
     The flux is the mass flux times the boundary value.
     """
-    if bc_type == BC_DIRICHLET:
-        # Dirichlet BC: face value is known (bc_value)
-        # Flux = mass_flux * boundary_value (goes to source term)
-        return mdot[f], -mdot[f] * bc_value
-
-    # For any other BC type (e.g., zero gradient on pressure), no convective flux
-    return 0.0, 0.0
+    # Dirichlet BC: face value is known (bc_value)
+    # Flux = mass_flux * boundary_value (goes to source term)
+    return mdot[f], -mdot[f] * bc_value

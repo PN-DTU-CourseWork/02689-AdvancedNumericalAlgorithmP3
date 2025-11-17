@@ -1,6 +1,5 @@
 import numpy as np
 from numba import njit, prange
-from fv.core.helpers import BC_NEUMANN
 
 EPS = 1e-20
 

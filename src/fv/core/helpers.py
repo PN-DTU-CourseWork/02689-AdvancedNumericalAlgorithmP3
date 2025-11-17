@@ -205,9 +205,6 @@ def apply_mean_zero_constraint(A: csr_matrix, b: np.ndarray, volumes: np.ndarray
 
     return A_aug, b_aug
 
-BC_DIRICHLET = 1
-BC_NEUMANN = 3
-
 def set_pressure_boundaries(mesh, p): 
     n_boundary = mesh.boundary_faces.shape[0]
     for i in prange(n_boundary):

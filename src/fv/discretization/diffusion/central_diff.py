@@ -3,9 +3,6 @@ from numba import njit
 
 EPS = 1.0e-14
 
-BC_DIRICHLET = 1
-BC_ZEROGRADIENT = 3
-
 # ──────────────────────────────────────────────────────────────────────────────
 # Internal faces
 # ──────────────────────────────────────────────────────────────────────────────
@@ -61,19 +58,15 @@ def compute_boundary_diffusive_correction(
     diffFlux_P_b : diagonal coefficient to add to owner cell
     diffFlux_N_b : RHS increment (will be subtracted: b[P] -= diffFlux_N_b)
 
-    Supports only BC_DIRICHLET (all velocity boundaries use this).
-    For BC_ZEROGRADIENT (used for pressure), no diffusive flux is applied.
+    All velocity boundaries use Dirichlet BC with fixed values.
     """
     muF = mu
     E_f = np.ascontiguousarray(mesh.vector_S_f[f])
     d_PB = mesh.d_Cb[f]
 
-    if bc_type == BC_DIRICHLET:
-        # Dirichlet BC: fixed value at boundary
-        E_mag = np.linalg.norm(E_f)
-        diffFlux_P_b = muF * E_mag / d_PB
-        diffFlux_N_b = -diffFlux_P_b * bc_val
-        return diffFlux_P_b, diffFlux_N_b
+    # Dirichlet BC: fixed value at boundary
+    E_mag = np.linalg.norm(E_f)
+    diffFlux_P_b = muF * E_mag / d_PB
+    diffFlux_N_b = -diffFlux_P_b * bc_val
 
-    # BC_ZEROGRADIENT or any other type: no diffusive flux
-    return 0.0, 0.0
+    return diffFlux_P_b, diffFlux_N_b

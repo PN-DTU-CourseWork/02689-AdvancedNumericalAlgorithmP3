@@ -1,9 +1,6 @@
 import numpy as np
 from numba import njit, prange
 
-# Boundary condition types
-BC_DIRICHLET = 1
-
 
 @njit(cache=True)
 def compute_velocity_gradient_least_squares(mesh, U_star_rc, U_star, x_P, U_star_C, P, f_exclude):
@@ -161,16 +158,10 @@ def rhie_chow_velocity_boundary_faces(mesh, U_faces, U_star, grad_p_bar, grad_p,
         S_f_0 = S_f[0]
         S_f_1 = S_f[1]
 
-        # Manual norm calculation
-        mag_S_f = np.sqrt(S_f_0 * S_f_0 + S_f_1 * S_f_1)
-        n_f_0 = S_f_0 / mag_S_f
-        n_f_1 = S_f_1 / mag_S_f
-
-        if bc_type == BC_DIRICHLET:
-            # Dirichlet BC: fixed velocity at boundary
-            boundary_vel = boundary_values[f]
-            U_faces[f, 0] = boundary_vel[0]
-            U_faces[f, 1] = boundary_vel[1]
+        # All velocity boundaries use Dirichlet BC: fixed velocity at boundary
+        boundary_vel = boundary_values[f]
+        U_faces[f, 0] = boundary_vel[0]
+        U_faces[f, 1] = boundary_vel[1]
 
     return U_faces
 
