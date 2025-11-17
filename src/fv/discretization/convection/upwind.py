@@ -7,7 +7,7 @@ def MUSCL(r):
 
 @njit(inline="always", cache=True, fastmath=True)
 def compute_convective_stencil(
-    f, mesh, rho, mdot, u_field, grad_phi, component_idx,
+    f, mesh, rho, mdot, grad_phi, component_idx,
     phi, scheme="Upwind", limiter=None
 ):
     P = mesh.owner_cells[f]

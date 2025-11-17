@@ -8,7 +8,6 @@ def assemble_diffusion_convection_matrix(
     mesh,
     mdot,
     grad_phi,
-    u_field,
     rho,
     mu,
     component_idx,
@@ -52,7 +51,7 @@ def assemble_diffusion_convection_matrix(
 
         # —— convection term (upwind) ——
         convFlux_P_f, convFlux_N_f, convDC = compute_convective_stencil(
-            f, mesh, rho, mdot, u_field, grad_phi, component_idx, phi, scheme=scheme, limiter=limiter
+            f, mesh, rho, mdot, grad_phi, component_idx, phi, scheme=scheme, limiter=limiter
         )
 
         # —— orthogonal diffusion (inlined for clarity) ——

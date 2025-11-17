@@ -59,17 +59,15 @@ class FVSolver(LidDrivenCavitySolver):
         self.rho = 1.0
         self.mu = self.rho * self.config.lid_velocity * self.config.Lx / self.config.Re
 
-        # Initialize velocity and pressure fields
-        self.u = np.ascontiguousarray(np.zeros(n_cells))
-        self.v = np.ascontiguousarray(np.zeros(n_cells))
-        self.p = np.ascontiguousarray(np.zeros(n_cells))
-
-        # Previous iteration fields
-        self.u_prev_iter = np.ascontiguousarray(np.zeros(n_cells))
-        self.v_prev_iter = np.ascontiguousarray(np.zeros(n_cells))
+        # Initialize velocity and pressure fields (1D arrays)
+        self.u = np.zeros(n_cells)
+        self.v = np.zeros(n_cells)
+        self.u_prev_iter = np.zeros(n_cells)
+        self.v_prev_iter = np.zeros(n_cells)
+        self.p = np.zeros(n_cells)
 
         # Mass fluxes
-        self.mdot = np.ascontiguousarray(np.zeros(n_faces))
+        self.mdot = np.zeros(n_faces)
 
         # Linear solver settings
         self.linear_solver_settings = {
@@ -99,12 +97,11 @@ class FVSolver(LidDrivenCavitySolver):
             Diagonal of momentum matrix (needed for pressure correction)
         """
         n_cells = self.mesh.cell_volumes.shape[0]
-        U_prev_iter = np.column_stack([self.u_prev_iter, self.v_prev_iter])
         component_idx = 0 if phi is self.u else 1
 
         # Assemble momentum equation
         row, col, data, b = assemble_diffusion_convection_matrix(
-            self.mesh, self.mdot, grad_phi, U_prev_iter, self.rho, self.mu,
+            self.mesh, self.mdot, grad_phi, self.rho, self.mu,
             component_idx, phi=phi,
             scheme=self.config.convection_scheme, limiter=self.config.limiter
         )
