@@ -11,11 +11,7 @@ from fv.discretization.convection.upwind import (
     compute_boundary_convective_flux,
 )
 
-BC_WALL = 0
 BC_DIRICHLET = 1
-BC_INLET = 2
-BC_OUTLET = 3
-BC_OBSTACLE = 4
 
 EPS = 1.0e-14
 
@@ -131,9 +127,6 @@ def assemble_diffusion_convection_matrix(
         )
         
         row[idx] = P; col[idx] = P; data[idx] = (+diffFlux_P_b + convFlux_P_b) * time_scheme_factor; idx += 1
-        if bc_type == BC_OUTLET:
-            continue
-
         b[P] -= (diffFlux_N_b + convFlux_N_b) * time_scheme_factor
 
     if transient and dt > 0:

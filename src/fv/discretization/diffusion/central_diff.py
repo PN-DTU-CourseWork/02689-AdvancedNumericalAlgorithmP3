@@ -1,14 +1,10 @@
 import numpy as np
 from numba import njit
-from fv.discretization.convection.upwind import compute_velocity_gradient_least_squares
 
 EPS = 1.0e-14
 
-BC_WALL = 0
 BC_DIRICHLET = 1
-BC_INLET = 2
-BC_OUTLET = 3
-BC_OBSTACLE = 4
+BC_ZEROGRADIENT = 3
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Internal faces
@@ -58,95 +54,26 @@ def compute_diffusive_correction(f, grad_phi, mesh, mu):
 # ──────────────────────────────────────────────────────────────────────────────
 @njit(inline="always", cache=True, fastmath=True)
 def compute_boundary_diffusive_correction(
-        f,U, grad_phi, mesh, mu, p_b, bc_type, bc_val, component_idx):
+        f, U, grad_phi, mesh, mu, p_b, bc_type, bc_val, component_idx):
     """
-    Return (P, a_P, b_P)  —  everything is written to the owner cell only.
+    Return (diffFlux_P_b, diffFlux_N_b) for boundary diffusion.
 
-       a_P : diagonal coefficient to add
-       b_P : RHS increment that will be **subtracted** (b[P]-=b_P)
+    diffFlux_P_b : diagonal coefficient to add to owner cell
+    diffFlux_N_b : RHS increment (will be subtracted: b[P] -= diffFlux_N_b)
 
-    Supports:
-    - BC_DIRICHLET
-    - BC_NEUMANN
-    - BC_ZEROGRADIENT
+    Supports only BC_DIRICHLET (all velocity boundaries use this).
+    For BC_ZEROGRADIENT (used for pressure), no diffusive flux is applied.
     """
-    P = mesh.owner_cells[f]
-    muF = mu 
-    diffFlux_P_b = 0.0
-    diffFlux_N_b = 0.0
-
+    muF = mu
     E_f = np.ascontiguousarray(mesh.vector_S_f[f])
     d_PB = mesh.d_Cb[f]
 
-    
     if bc_type == BC_DIRICHLET:
-
+        # Dirichlet BC: fixed value at boundary
         E_mag = np.linalg.norm(E_f)
-        diffFlux_P_b = muF * E_mag / (d_PB)
-        diffFlux_N_b = -diffFlux_P_b * bc_val  # explicit orthogonal part
+        diffFlux_P_b = muF * E_mag / d_PB
+        diffFlux_N_b = -diffFlux_P_b * bc_val
+        return diffFlux_P_b, diffFlux_N_b
 
-        # For orthogonal grids: no non-orthogonal correction (T_f = 0, skewness = 0)
-    
-    elif bc_type == BC_WALL or bc_type == BC_OBSTACLE:
-        # --- wall shear stress ---
-        P = mesh.owner_cells[f]
-        Sf = np.ascontiguousarray(mesh.vector_S_f[f])
-        n = Sf / (np.linalg.norm(Sf) + EPS)
-        S_mag = np.linalg.norm(Sf)
-        d_Cb = np.ascontiguousarray(mesh.d_Cb[f])
-        d_Cb_vec = d_Cb * n
-        d_orth = np.dot(d_Cb_vec, n)
-
-        # Get boundary values
-        U_b = mesh.boundary_values[f]  # Boundary velocity
-        U_C = U[P]  # Cell center velocity
-
-        # Calculate wall conductance (Moukalled 15.125)
-        frac = (muF * S_mag) / (d_orth + EPS) 
-
-        if component_idx == 0:  # u-momentum
-            term = (1 - n[0]**2)  # Tangential component for u
-            # Use boundary values for cross-coupling
-            cross_term = (U_C[1] - U_b[1]) * n[1] * n[0]  # Cross-coupling with v
-            main_term = U_b[0] * (1 - n[0]**2)  # Wall velocity contribution
-        elif component_idx == 1:  # v-momentum
-            term = (1 - n[1]**2)  # Tangential component for v
-            # Use boundary values for cross-coupling
-            cross_term = (U_C[0] - U_b[0]) * n[0] * n[1]  # Cross-coupling with u
-            main_term = U_b[1] * (1 - n[1]**2)  # Wall velocity contribution
-
-        # Matrix coefficients for wall shear stress
-        diffFlux_P_b += frac * term
-        diffFlux_N_b += -frac * (main_term + cross_term) #- p_b * Sf[component_idx]
-
-        # --- explicit non-orthogonal correction (FluxV_b) ---
-        #grad_P = grad_phi[P]
-        #grad_P_mark = grad_P + np.dot(grad_P, d_skew)
-        #fluxVb = -muF * np.dot(grad_P_mark, T_f)
-        #diffFlux_N_b += fluxVb
-
-    elif bc_type == BC_INLET:
-        E_mag = np.linalg.norm(E_f)
-        diffFlux_P_b = muF * E_mag / (d_PB)
-        diffFlux_N_b = -diffFlux_P_b * bc_val  # explicit orthogonal part
-
-        # For orthogonal grids: no non-orthogonal correction 
-    elif bc_type == BC_OUTLET:
-        grad_v_b = compute_velocity_gradient_least_squares(mesh, U, U, mesh.face_centers[f], U[P], P, f)
-        P = mesh.owner_cells[f]
-        Sf = np.ascontiguousarray(mesh.vector_S_f[f])
-        E_f = np.ascontiguousarray(mesh.vector_S_f[f])
-        e = E_f / np.linalg.norm(E_f)
-        d_Pb_vec = d_PB * e
-        v_b = U[P] + np.dot(grad_v_b, d_Pb_vec)
-        E_mag = np.linalg.norm(E_f) 
-        diffFlux_P_b = muF * E_mag / (d_PB )
-        diffFlux_N_b = -diffFlux_P_b * v_b[component_idx] #v_b[component_idx] # explicit orthogonal part
-
-        # For orthogonal grids: no non-orthogonal correction
-        diffFlux_N_b = 0.0
-        diffFlux_P_b = 0.0
-        ## no diffusive flux at outlet ferziger 8.10.2 Outlet - grid assumed to be orthogonal to the boundary
-    
-
-    return diffFlux_P_b, diffFlux_N_b
+    # BC_ZEROGRADIENT or any other type: no diffusive flux
+    return 0.0, 0.0

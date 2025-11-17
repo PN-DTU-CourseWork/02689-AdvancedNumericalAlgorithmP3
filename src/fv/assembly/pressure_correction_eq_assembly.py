@@ -1,11 +1,7 @@
 import numpy as np
 from numba import njit, prange
 
-BC_WALL = 0
-BC_DIRICHLET = 1
-BC_INLET = 2
-BC_OUTLET = 3
-BC_NEUMANN = 4
+BC_ZEROGRADIENT = 3
 
 @njit(cache=True, fastmath=True, boundscheck=False, error_model='numpy')
 def assemble_pressure_correction_matrix(mesh, rho):

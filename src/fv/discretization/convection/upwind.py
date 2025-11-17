@@ -1,12 +1,7 @@
 import numpy as np
 from numba import njit
-from fv.assembly.rhie_chow import compute_velocity_gradient_least_squares
 
-BC_WALL = 0
 BC_DIRICHLET = 1
-BC_INLET = 2
-BC_OUTLET = 3
-BC_OBSTACLE = 4
 
 @njit(inline="always")
 def MUSCL(r):
@@ -108,31 +103,15 @@ def compute_convective_stencil(
 @njit(inline="always", cache=True, fastmath=True)
 def compute_boundary_convective_flux(f, mesh, rho, mdot, u_field, phi, p_b, bc_type, bc_value, component_idx):
     """
-    First-order upwind boundary convection flux for a specific velocity component.
-    Skewness correction is ignored at boundaries.
+    First-order upwind boundary convection flux for velocity component.
+
+    For BC_DIRICHLET (all velocity boundaries), the face value is known.
+    The flux is the mass flux times the boundary value.
     """
-    P = mesh.owner_cells[f]
-    Sf = np.ascontiguousarray(mesh.vector_S_f[f])
-    E_f = np.ascontiguousarray(mesh.vector_S_f[f])
-    d_Cb = np.ascontiguousarray(mesh.d_Cb[f])
-    e = E_f / np.linalg.norm(E_f)
-    d_Cb_vec = d_Cb * e
-    phi_P = phi[P]
-
-    Flux_C_b = max(mdot[f], 0)
-    Flux_N_b = -max(-mdot[f],0) # ghost cell 
-
-    if bc_type == BC_DIRICHLET or bc_type == BC_INLET:
-        # For a Dirichlet/Inlet condition, the face value is known (bc_value).
-        # The flux is simply the mass flux times this known value.
-        # This contribution goes entirely to the source term.
+    if bc_type == BC_DIRICHLET:
+        # Dirichlet BC: face value is known (bc_value)
+        # Flux = mass_flux * boundary_value (goes to source term)
         return mdot[f], -mdot[f] * bc_value
-    elif bc_type == BC_OBSTACLE:
-        return 0.0, 0.0
-    elif bc_type == BC_OUTLET:
-        grad_v_b = compute_velocity_gradient_least_squares(mesh, u_field, u_field, mesh.face_centers[f], u_field[P], P, f)
-        v_b = u_field[P] + np.dot(grad_v_b, d_Cb_vec)
-        term2 =  (2*phi_P - v_b[component_idx])
-        return Flux_C_b, Flux_N_b * term2 
-    elif bc_type == BC_WALL:
-        return 0.0, 0.0
+
+    # For any other BC type (e.g., zero gradient on pressure), no convective flux
+    return 0.0, 0.0

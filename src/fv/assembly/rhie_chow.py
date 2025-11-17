@@ -1,12 +1,8 @@
 import numpy as np
 from numba import njit, prange
 
-# Boundary condition types (must match convection_diffusion_matrix.py)
-BC_WALL = 0
+# Boundary condition types
 BC_DIRICHLET = 1
-BC_INLET = 2
-BC_OUTLET = 3
-BC_OBSTACLE = 4
 
 
 @njit(cache=True)
@@ -170,42 +166,11 @@ def rhie_chow_velocity_boundary_faces(mesh, U_faces, U_star, grad_p_bar, grad_p,
         n_f_0 = S_f_0 / mag_S_f
         n_f_1 = S_f_1 / mag_S_f
 
-        if bc_type == BC_WALL or bc_type == BC_OBSTACLE:
-            # Wall: zero velocity
-            U_faces[f, 0] = 0.0
-            U_faces[f, 1] = 0.0
-            
-        elif bc_type == BC_DIRICHLET or bc_type == BC_INLET:
-            # Fixed velocity boundary
+        if bc_type == BC_DIRICHLET:
+            # Dirichlet BC: fixed velocity at boundary
             boundary_vel = boundary_values[f]
             U_faces[f, 0] = boundary_vel[0]
             U_faces[f, 1] = boundary_vel[1]
-            
-        elif bc_type == BC_OUTLET:
-            # Pressure outlet: use interior velocity with Rhie-Chow correction
-            U_star_P = U_star[P]
-            grad_p_P = grad_p[P]
-            bold_D_f = bold_D_bar[f]
-            
-            # Distance to boundary
-            d_Cb_f = d_Cb[f]
-            vec_Cb_0 = d_Cb_f * n_f_0
-            vec_Cb_1 = d_Cb_f * n_f_1
-
-            # Extrapolated velocity
-            U_b_0 = U_star_P[0] + grad_p_P[0] * vec_Cb_0
-            U_b_1 = U_star_P[1] + grad_p_P[1] * vec_Cb_1
-
-            # Gradient correction
-            grad_p_bar_f = grad_p_bar[f]
-            grad_p_f_0 = grad_p_P[0] + grad_p_P[0] * vec_Cb_0
-            grad_p_f_1 = grad_p_P[1] + grad_p_P[1] * vec_Cb_1
-            
-            correction_0 = bold_D_f[0] * (grad_p_bar_f[0] - grad_p_f_0)
-            correction_1 = bold_D_f[1] * (grad_p_bar_f[1] - grad_p_f_1)
-
-            U_faces[f, 0] = U_b_0 - correction_0
-            U_faces[f, 1] = U_b_1 - correction_1
 
     return U_faces
 

@@ -204,12 +204,9 @@ def apply_mean_zero_constraint(A: csr_matrix, b: np.ndarray, volumes: np.ndarray
     b_aug = np.concatenate([b, [0.0]])
 
     return A_aug, b_aug
-BC_WALL = 0
+
 BC_DIRICHLET = 1
-BC_INLET = 2
-BC_OUTLET = 4
 BC_NEUMANN = 3
-BC_OBSTACLE = 4  # Same as wall for our purposes
 
 def set_pressure_boundaries(mesh, p): 
     n_boundary = mesh.boundary_faces.shape[0]
