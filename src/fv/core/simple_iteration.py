@@ -118,8 +118,7 @@ def simple_step(mesh, config, state):
     #=============================================================================
     row, col, data, b_u = assemble_diffusion_convection_matrix(
         mesh, mdot, grad_u, U_prev_iter, rho, mu, 0, phi=u,
-        scheme=config.convection_scheme, limiter=config.limiter, pressure_field=p,
-        grad_pressure_field=grad_p
+        scheme=config.convection_scheme, limiter=config.limiter
     )
     A_u = coo_matrix((data, (row, col)), shape=(n_cells, n_cells)).tocsr()
     A_u_diag = A_u.diagonal()
@@ -139,8 +138,7 @@ def simple_step(mesh, config, state):
     #=============================================================================
     row, col, data, b_v = assemble_diffusion_convection_matrix(
         mesh, mdot, grad_v, U_prev_iter, rho, mu, 1, phi=v,
-        scheme=config.convection_scheme, limiter=config.limiter, pressure_field=p,
-        grad_pressure_field=grad_p
+        scheme=config.convection_scheme, limiter=config.limiter
     )
     A_v = coo_matrix((data, (row, col)), shape=(n_cells, n_cells)).tocsr()
     A_v_diag = A_v.diagonal()

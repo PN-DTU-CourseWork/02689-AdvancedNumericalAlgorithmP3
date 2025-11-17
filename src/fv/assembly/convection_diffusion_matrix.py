@@ -1,10 +1,7 @@
 import numpy as np
 from numba import njit
 
-from fv.discretization.diffusion.central_diff import compute_diffusive_flux_matrix_entry
 from fv.discretization.convection.upwind import compute_convective_stencil
-
-EPS = 1.0e-14
 
 @njit(cache=True, fastmath=True, nogil=True, parallel=False, boundscheck=False, error_model='numpy')
 def assemble_diffusion_convection_matrix(
@@ -17,9 +14,7 @@ def assemble_diffusion_convection_matrix(
     component_idx,
     phi,
     scheme="Upwind",
-    limiter=None,
-    pressure_field = None,
-    grad_pressure_field = None
+    limiter=None
 ):
     """Assemble sparse matrix and RHS for steady-state collocated FV discretisation.
 
@@ -60,8 +55,14 @@ def assemble_diffusion_convection_matrix(
             f, mesh, rho, mdot, u_field, grad_phi, component_idx, phi, scheme=scheme, limiter=limiter
         )
 
-        # —— orthogonal diffusion ——
-        diffFlux_P_f, diffFlux_N_f = compute_diffusive_flux_matrix_entry(f, grad_phi, mesh, mu)
+        # —— orthogonal diffusion (inlined for clarity) ——
+        vector_E_f = mesh.vector_S_f[f]
+        vector_d_CE = mesh.vector_d_CE[f]
+        E_mag = np.sqrt(vector_E_f[0]**2 + vector_E_f[1]**2)
+        d_mag = np.sqrt(vector_d_CE[0]**2 + vector_d_CE[1]**2)
+        geoDiff = E_mag / d_mag
+        diffFlux_P_f = mu * geoDiff
+        diffFlux_N_f = -mu * geoDiff
 
         # —— face fluxes —— Moukalled 15.72 ——
         Flux_P_f =  convFlux_P_f + diffFlux_P_f

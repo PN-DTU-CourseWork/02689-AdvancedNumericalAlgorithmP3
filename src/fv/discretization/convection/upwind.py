@@ -97,15 +97,3 @@ def compute_convective_stencil(
 
 
     return Flux_P_f, Flux_N_f, convDC
-
-@njit(inline="always", cache=True, fastmath=True)
-def compute_boundary_convective_flux(f, mdot, bc_value):
-    """
-    First-order upwind boundary convection flux for velocity component.
-
-    All velocity boundaries use Dirichlet BC with known face values.
-    The flux is the mass flux times the boundary value.
-    """
-    # Dirichlet BC: face value is known (bc_value)
-    # Flux = mass_flux * boundary_value (goes to source term)
-    return mdot[f], -mdot[f] * bc_value
