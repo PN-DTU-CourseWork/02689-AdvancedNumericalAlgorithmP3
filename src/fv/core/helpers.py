@@ -205,28 +205,6 @@ def apply_mean_zero_constraint(A: csr_matrix, b: np.ndarray, volumes: np.ndarray
 
     return A_aug, b_aug
 
-def set_pressure_boundaries(mesh, p): 
-    n_boundary = mesh.boundary_faces.shape[0]
-    for i in prange(n_boundary):
-        f = mesh.boundary_faces[i]
-        bc_type = mesh.boundary_types[f,0]
-        P = mesh.owner_cells[f]
-        
-        if bc_type == BC_OUTLET:
-            # Fixed pressure at outlet
-            p[f] = mesh.boundary_values[f]
-        elif bc_type == BC_WALL or bc_type == BC_OBSTACLE:
-            # Zero normal gradient at wall: extrapolate from cell center
-            # p_b = p_P + (∇p)_P · d_Cb = p_P since (∇p)_P · n = 0
-            p[f] = p[P]
-        elif bc_type == BC_INLET:
-            # Zero normal gradient at inlet
-            p[f] = p[P]
-        elif bc_type == BC_NEUMANN:
-            # General zero gradient condition
-            p[f] = p[P]
-    return p
-
 def get_unique_cells_from_faces(mesh, face_indices):
     """
     Given a set of face indices, return the unique cell indices (owners and neighbors) associated with those faces.

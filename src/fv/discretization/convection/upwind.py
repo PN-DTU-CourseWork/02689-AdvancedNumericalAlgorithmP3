@@ -21,34 +21,22 @@ def compute_convective_stencil(
     P = mesh.owner_cells[f]
     N = mesh.neighbor_cells[f]
 
-    g_f = mesh.face_interp_factors[f]
-    d_CE = np.ascontiguousarray(mesh.vector_d_CE[f])
-
     # Moukalled 15.72 (negative sign for neighbor handled in matrix assembly)
     Flux_P_f = max(mdot[f], 0)
     Flux_N_f = -max(-mdot[f],0)
 
+    if scheme == "Upwind":
+        convDC = 0.0
+    elif scheme == "TVD":
+        # Variables needed for TVD
+        phi_P = phi[P]
+        phi_N = phi[N]
+        F_low = mdot[f] * (phi_P if mdot[f] >= 0 else phi_N)
 
-    # stuff for TVD and other HO schemes
-    phi_P = phi[P]
-    phi_N = phi[N]
-    F_low = mdot[f] * (phi_P if mdot[f]  >= 0 else phi_N)
-
-    gradC = grad_phi[P]
-    gradN = grad_phi[N]
-    grad_f = g_f * gradN + (1 - g_f) * gradC
-
-    # For orthogonal Cartesian grids, skewness = 0, so no correction needed
-    grad_f_mark = grad_f
-
-    d_Cf = d_CE * g_f
-
-
-    if scheme == "TVD":  
         # Compute the limiter
         if limiter is None:
             psi = 1.0 # numba type safeguard
-            
+
         # Determine upwind and downwind cells based on mass flux direction
         if mdot[f] >= 0:
             # Flow from P to N
@@ -76,9 +64,20 @@ def compute_convective_stencil(
         phi_HO = phi_up + 0.5 * psi * (phi_down - phi_up)
         F_high = mdot[f] * phi_HO
         convDC = (F_high - F_low)
-    elif scheme == "Upwind": 
-        convDC = 0.0 
-    elif scheme != "Upwind":
+    else:
+        # Higher-order schemes (Central difference, SOU, QUICK)
+        # Variables needed for higher-order schemes
+        phi_P = phi[P]
+        phi_N = phi[N]
+        F_low = mdot[f] * (phi_P if mdot[f] >= 0 else phi_N)
+
+        g_f = mesh.face_interp_factors[f]
+        d_CE = np.ascontiguousarray(mesh.vector_d_CE[f])
+        gradC = grad_phi[P]
+        gradN = grad_phi[N]
+        grad_f = g_f * gradN + (1 - g_f) * gradC
+        d_Cf = d_CE * g_f
+
         # set coefficients
         if scheme == "Central difference":
             a = 0.0
@@ -89,11 +88,14 @@ def compute_convective_stencil(
         elif scheme == "QUICK":
             a = 0.5
             b = 0.5
+        else:
+            # Default to central difference for unknown schemes
+            a = 0.0
+            b = 1.0
+
         # Compute the high order term
-        phi_HO = phi_P +  np.dot(gradC * a + grad_f_mark * b, d_Cf)
+        phi_HO = phi_P + np.dot(gradC * a + grad_f * b, d_Cf)
         F_high = mdot[f] * phi_HO
         convDC = (F_high - F_low)
-    
-
 
     return Flux_P_f, Flux_N_f, convDC
