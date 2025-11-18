@@ -48,10 +48,15 @@ class LidDrivenCavitySolver(ABC):
         self.mu = self.rho * self.config.lid_velocity * self.config.Lx / self.config.Re
 
         # Create mesh
-        self.mesh = self.MeshType(self.config)
+        self.mesh = self.MeshType(
+            nx=self.config.nx,
+            ny=self.config.ny,
+            Lx=self.config.Lx,
+            Ly=self.config.Ly
+        )
 
         # Create fields
-        self.fields = self.FieldsType(self.mesh)
+        self.fields = self.FieldsType(n_cells=self.mesh.n_cells)
 
         # Initialize time series
         self.time_series = TimeSeries()
@@ -102,8 +107,8 @@ class LidDrivenCavitySolver(ABC):
             max_iter = self.config.max_iterations
 
         # Store previous iteration for residual calculation
-        u_prev = self.fields.u.copy()
-        v_prev = self.fields.v.copy()
+        self.fields.u_prev[:] = self.fields.u
+        self.fields.v_prev[:] = self.fields.v
 
         time_start = time.time()
         is_converged = False
@@ -113,25 +118,23 @@ class LidDrivenCavitySolver(ABC):
             self.fields.u, self.fields.v, self.fields.p = self.step()
 
             # Calculate normalized solution change: ||u^{n+1} - u^n||_2 / ||u^n||_2
-            u_change_norm = np.linalg.norm(self.fields.u - u_prev)
-            v_change_norm = np.linalg.norm(self.fields.v - v_prev)
+            u_change_norm = np.linalg.norm(self.fields.u - self.fields.u_prev)
+            v_change_norm = np.linalg.norm(self.fields.v - self.fields.v_prev)
 
-            u_prev_norm = np.linalg.norm(u_prev) + 1e-12
-            v_prev_norm = np.linalg.norm(v_prev) + 1e-12
+            u_prev_norm = np.linalg.norm(self.fields.u_prev) + 1e-12
+            v_prev_norm = np.linalg.norm(self.fields.v_prev) + 1e-12
 
             u_residual = u_change_norm / u_prev_norm
             v_residual = v_change_norm / v_prev_norm
 
             # Only store residual history after first 10 iterations
             if i >= 10:
-                rel_residual = max(u_residual, v_residual)
-                self.time_series.rel_residual.append(rel_residual)
-                self.time_series.u_residual.append(u_residual)
-                self.time_series.v_residual.append(v_residual)
+                self.time_series.u_residuals.append(u_residual)
+                self.time_series.v_residuals.append(v_residual)
 
             # Update previous iteration
-            u_prev = self.fields.u.copy()
-            v_prev = self.fields.v.copy()
+            self.fields.u_prev[:] = self.fields.u
+            self.fields.v_prev[:] = self.fields.v
 
             # Check convergence (only after warmup period)
             if i >= 10:
