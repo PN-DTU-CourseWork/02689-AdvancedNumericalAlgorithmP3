@@ -6,10 +6,9 @@ SIMPLE algorithm for pressure-velocity coupling.
 
 import numpy as np
 from scipy.sparse import csr_matrix
-from dataclasses import replace
 
 from .base_solver import LidDrivenCavitySolver
-from .datastructures import FVinfo, FVResultFields, TimeSeries, FVSolverFields
+from .datastructures import FVinfo, FVResultFields, FVSolverFields
 
 from fv.assembly.convection_diffusion_matrix import assemble_diffusion_convection_matrix
 from fv.discretization.gradient.structured_gradient import compute_cell_gradients_structured
@@ -29,13 +28,13 @@ class FVSolver(LidDrivenCavitySolver):
 
     Parameters
     ----------
-    config : FVConfig
+    config : FVinfo
         Configuration with physics (Re, lid velocity, domain size) and
         FV-specific parameters (nx, ny, convection scheme, etc.).
     """
 
-    # Make config class accessible via solver
     Config = FVinfo
+    ResultFields = FVResultFields
 
     # Constant fluid density
     rho = 1.0
@@ -58,76 +57,14 @@ class FVSolver(LidDrivenCavitySolver):
         # Compute dynamic viscosity from Reynolds number
         self.mu = self.rho * self.config.lid_velocity * self.config.Lx / self.config.Re
 
-        # Initialize all solver arrays in a single dataclass
-        self.arrays = FVSolverFields(
-            # Current solution
-            u=np.zeros(n_cells),
-            v=np.zeros(n_cells),
-            p=np.zeros(n_cells),
-            mdot=np.zeros(n_faces),
-            # Previous iteration
-            u_prev=np.zeros(n_cells),
-            v_prev=np.zeros(n_cells),
-            # Gradient buffers
-            grad_p=np.zeros((n_cells, 2)),
-            grad_u=np.zeros((n_cells, 2)),
-            grad_v=np.zeros((n_cells, 2)),
-            grad_p_prime=np.zeros((n_cells, 2)),
-            # Face interpolation buffers
-            grad_p_bar=np.zeros((n_faces, 2)),
-            bold_D=np.zeros((n_cells, 2)),
-            bold_D_bar=np.zeros((n_faces, 2)),
-            # Velocity and flux work buffers
-            U_star_rc=np.zeros((n_faces, 2)),
-            U_prime_face=np.zeros((n_faces, 2)),
-            u_prime=np.zeros(n_cells),
-            v_prime=np.zeros(n_cells),
-            mdot_star=np.zeros(n_faces),
-            mdot_prime=np.zeros(n_faces),
-        )
+        # Allocate all solver arrays
+        self.arrays = FVSolverFields.allocate(n_cells, n_faces)
 
         # Linear solver settings (same for both momentum and pressure)
         self.linear_solver_settings = {'type': 'bcgs', 'preconditioner': 'hypre', 'tolerance': 1e-6, 'max_iterations': 1000}
 
         # Cache commonly used values
         self.n_cells = n_cells
-
-    def _initialize_fields(self):
-        """Initialize fields - no-op since initialization happens in __init__."""
-        pass
-
-    # Properties for backward compatibility with base solver
-    @property
-    def u(self):
-        return self.arrays.u
-
-    @u.setter
-    def u(self, value):
-        self.arrays.u = value
-
-    @property
-    def v(self):
-        return self.arrays.v
-
-    @v.setter
-    def v(self, value):
-        self.arrays.v = value
-
-    @property
-    def p(self):
-        return self.arrays.p
-
-    @p.setter
-    def p(self, value):
-        self.arrays.p = value
-
-    @property
-    def mdot(self):
-        return self.arrays.mdot
-
-    @mdot.setter
-    def mdot(self, value):
-        self.arrays.mdot = value
 
     def _solve_momentum_equation(self, component_idx, phi, grad_phi, phi_prev_iter, grad_p_component):
         """Solve a single momentum equation (u or v).
@@ -154,7 +91,7 @@ class FVSolver(LidDrivenCavitySolver):
         """
         # Assemble momentum equation
         row, col, data, b = assemble_diffusion_convection_matrix(
-            self.mesh, self.mdot, grad_phi, self.rho, self.mu,
+            self.mesh, self.arrays.mdot, grad_phi, self.rho, self.mu,
             component_idx, phi=phi,
             scheme=self.config.convection_scheme, limiter=self.config.limiter
         )
@@ -230,36 +167,14 @@ class FVSolver(LidDrivenCavitySolver):
 
         return a.u, a.v, a.p
 
-    def _create_output_dataclasses(self, residual_history, final_iter_count, is_converged):
-        """Create FV-specific output dataclasses."""
-        # Extract residuals using list comprehensions
-        u_residuals = [r['u'] for r in residual_history]
-        v_residuals = [r['v'] for r in residual_history]
-        combined_residual = [max(r['u'], r['v']) for r in residual_history]
-
-        fields = FVResultFields(
-            u=self.u,
-            v=self.v,
-            p=self.p,
+    def _create_result_fields(self):
+        """Create FV-specific result fields with mesh data and mdot."""
+        return FVResultFields(
+            u=self.arrays.u,
+            v=self.arrays.v,
+            p=self.arrays.p,
             x=self.mesh.cell_centers[:, 0],
             y=self.mesh.cell_centers[:, 1],
             grid_points=self.mesh.cell_centers,
-            mdot=self.mdot,
+            mdot=self.arrays.mdot,
         )
-
-        time_series = TimeSeries(
-            residual=combined_residual,
-            u_residual=u_residuals,
-            v_residual=v_residuals,
-            continuity_residual=None,  # Can add this later if needed
-        )
-
-        # Update config with convergence info instead of duplicating all fields
-        metadata = replace(
-            self.config,
-            iterations=final_iter_count,
-            converged=is_converged,
-            final_residual=combined_residual[-1] if combined_residual else float('inf'),
-        )
-
-        return fields, time_series, metadata

@@ -111,6 +111,36 @@ class FVSolverFields:
     mdot_star: np.ndarray
     mdot_prime: np.ndarray
 
+    @classmethod
+    def allocate(cls, n_cells: int, n_faces: int):
+        """Allocate all arrays with proper sizes."""
+        return cls(
+            # Current solution
+            u=np.zeros(n_cells),
+            v=np.zeros(n_cells),
+            p=np.zeros(n_cells),
+            mdot=np.zeros(n_faces),
+            # Previous iteration
+            u_prev=np.zeros(n_cells),
+            v_prev=np.zeros(n_cells),
+            # Gradient buffers
+            grad_p=np.zeros((n_cells, 2)),
+            grad_u=np.zeros((n_cells, 2)),
+            grad_v=np.zeros((n_cells, 2)),
+            grad_p_prime=np.zeros((n_cells, 2)),
+            # Face interpolation buffers
+            grad_p_bar=np.zeros((n_faces, 2)),
+            bold_D=np.zeros((n_cells, 2)),
+            bold_D_bar=np.zeros((n_faces, 2)),
+            # Velocity and flux work buffers
+            U_star_rc=np.zeros((n_faces, 2)),
+            U_prime_face=np.zeros((n_faces, 2)),
+            u_prime=np.zeros(n_cells),
+            v_prime=np.zeros(n_cells),
+            mdot_star=np.zeros(n_faces),
+            mdot_prime=np.zeros(n_faces),
+        )
+
 
 #=====================================================
 # Spectral Data Classes
