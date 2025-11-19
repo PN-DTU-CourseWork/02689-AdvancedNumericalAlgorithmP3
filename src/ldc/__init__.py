@@ -18,9 +18,12 @@ from .datastructures import (
     Fields,
     FVResultFields,
     FVSolverFields,
+    SpectralResultFields,
+    SpectralSolverFields,
     TimeSeries,
 )
 from .fv_solver import FVSolver
+from .spectral_solver import SpectralSolver
 
 __all__ = [
     # Base classes
@@ -33,7 +36,10 @@ __all__ = [
     "Fields",
     "FVResultFields",
     "FVSolverFields",
+    "SpectralResultFields",
+    "SpectralSolverFields",
     "TimeSeries",
     # Concrete solvers
     "FVSolver",
+    "SpectralSolver",
 ]
