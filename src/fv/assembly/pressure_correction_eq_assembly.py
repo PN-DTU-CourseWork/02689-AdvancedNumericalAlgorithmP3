@@ -1,13 +1,12 @@
 import numpy as np
-from numba import njit, prange
+from numba import njit
 
-@njit(cache=True, fastmath=True, boundscheck=False, error_model='numpy')
+@njit()
 def assemble_pressure_correction_matrix(mesh, rho):
     """
     Assemble pressure correction equation matrix.
     Optimized for memory access patterns with pre-fetched static data.
     """
-    n_cells = mesh.cell_volumes.shape[0]
     n_internal = mesh.internal_faces.shape[0]
 
     # Pessimistic non-zero count 
