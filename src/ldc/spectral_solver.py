@@ -129,15 +129,13 @@ class SpectralSolver(LidDrivenCavitySolver):
         if self.config.corner_smoothing > 0:
             smooth_width = int(self.config.corner_smoothing * Nx)
             if smooth_width > 0:
-                # Left corner
-                for i in range(smooth_width):
-                    factor = 0.5 * (1 - np.cos(np.pi * i / smooth_width))
-                    u_2d[i, -1] = factor * self.config.lid_velocity
-                # Right corner
-                for i in range(smooth_width):
-                    idx = Nx - i
-                    factor = 0.5 * (1 - np.cos(np.pi * i / smooth_width))
-                    u_2d[idx, -1] = factor * self.config.lid_velocity
+                # Vectorized corner smoothing
+                i_values = np.arange(smooth_width)
+                factors = 0.5 * (1 - np.cos(np.pi * i_values / smooth_width))
+
+                # Left and right corners
+                u_2d[i_values, -1] = factors * self.config.lid_velocity
+                u_2d[Nx - i_values, -1] = factors * self.config.lid_velocity
 
     def _interpolate_pressure_gradient(self):
         """Compute pressure gradient on inner grid and interpolate to full grid.
@@ -178,11 +176,17 @@ class SpectralSolver(LidDrivenCavitySolver):
         dp_dy_2d[1:-1, 0] = 2 * dp_dy_2d[1:-1, 1] - dp_dy_2d[1:-1, 2]
         dp_dy_2d[1:-1, -1] = 2 * dp_dy_2d[1:-1, -2] - dp_dy_2d[1:-1, -3]
 
-        # Corners (average of neighbors)
-        for i in [0, -1]:
-            for j in [0, -1]:
-                dp_dx_2d[i, j] = 0.5 * (dp_dx_2d[i, 1 if j == 0 else -2] + dp_dx_2d[1 if i == 0 else -2, j])
-                dp_dy_2d[i, j] = 0.5 * (dp_dy_2d[i, 1 if j == 0 else -2] + dp_dy_2d[1 if i == 0 else -2, j])
+        # Corners (average of neighbors) - vectorized
+        # Define corner positions and their neighbors
+        i_corners = np.array([0, 0, -1, -1])
+        j_corners = np.array([0, -1, 0, -1])
+        i_horiz = np.array([0, 0, -1, -1])
+        j_horiz = np.array([1, -2, 1, -2])
+        i_vert = np.array([1, 1, -2, -2])
+        j_vert = np.array([0, -1, 0, -1])
+
+        dp_dx_2d[i_corners, j_corners] = 0.5 * (dp_dx_2d[i_horiz, j_horiz] + dp_dx_2d[i_vert, j_vert])
+        dp_dy_2d[i_corners, j_corners] = 0.5 * (dp_dy_2d[i_horiz, j_horiz] + dp_dy_2d[i_vert, j_vert])
 
         # Store flattened on full grid
         self.arrays.dp_dx[:] = dp_dx_2d.ravel()
@@ -273,17 +277,15 @@ class SpectralSolver(LidDrivenCavitySolver):
 
         # Apply corner smoothing to lid velocity
         if self.config.corner_smoothing > 0:
-            smooth_width = int(self.config.corner_smoothing * self.config.Nx)
+            smooth_width = int(self.config.corner_smoothing * Nx)
             if smooth_width > 0:
-                # Left corner
-                for i in range(smooth_width):
-                    factor = 0.5 * (1 - np.cos(np.pi * i / smooth_width))
-                    u_2d[i, -1] = factor * self.config.lid_velocity
-                # Right corner
-                for i in range(smooth_width):
-                    idx = self.config.Nx - i
-                    factor = 0.5 * (1 - np.cos(np.pi * i / smooth_width))
-                    u_2d[idx, -1] = factor * self.config.lid_velocity
+                # Vectorized corner smoothing
+                i_values = np.arange(smooth_width)
+                factors = 0.5 * (1 - np.cos(np.pi * i_values / smooth_width))
+
+                # Left and right corners
+                u_2d[i_values, -1] = factors * self.config.lid_velocity
+                u_2d[Nx - i_values, -1] = factors * self.config.lid_velocity
 
     def _compute_adaptive_timestep(self):
         """Compute adaptive pseudo-timestep based on CFL condition.
