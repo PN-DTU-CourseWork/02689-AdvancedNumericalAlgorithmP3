@@ -78,9 +78,9 @@ class LidDrivenCavitySolver(ABC):
             u_residual=u_residuals,
             v_residual=v_residuals,
             continuity_residual=[],
-            energy= energy,
-            enstrophy= enstrophy,
-            palinstropy= palinstropy,
+            energy=energy,
+            enstrophy=enstrophy,
+            palinstropy=palinstropy,
         )
 
         # Update metadata with convergence info
@@ -127,7 +127,6 @@ class LidDrivenCavitySolver(ABC):
         energy = []
         palinstropy = []
         enstrophy = []
-            
 
         time_start = time.time()
         final_iter_count = 0
@@ -222,9 +221,9 @@ class LidDrivenCavitySolver(ABC):
 
             # Add velocity magnitude if u and v are present
             if "u" in fields_dict and "v" in fields_dict:
-                import numpy as np
+                import numpy as _np
 
-                vel_mag = np.sqrt(fields_dict["u"] ** 2 + fields_dict["v"] ** 2)
+                vel_mag = _np.sqrt(fields_dict["u"] ** 2 + fields_dict["v"] ** 2)
                 fields_grp.create_dataset("velocity_magnitude", data=vel_mag)
 
             # Save grid_points at root level for compatibility
@@ -238,13 +237,126 @@ class LidDrivenCavitySolver(ABC):
                     if val is not None:
                         ts_grp.create_dataset(key, data=val)
 
-    def _calculate_enstrophy(self): 
-        #TODO: ASKE
-        return 0.0
+    # ---------------------------------------------------------------------
+    # Diagnostics using ONLY self.fields  (no self.arrays needed)
+    # ---------------------------------------------------------------------
+    def _energy_from_stored(self) -> float:
+        """
+        Kinetic energy:
+            E = 0.5 * ∫ (u^2 + v^2) dA
+        Uses self.fields.u and self.fields.v (both flattened 1D arrays).
+        """
+        fields = self.fields
+        u = fields.u
+        v = fields.v
 
-    def _calculate_palinstropy(self): 
-        #TODO: ASKE
-        return 0.0
-    def _calculate_energy(self):
-        #TODO: ASKE
-        return 0.0
+        # area per cell (uniform grid)
+        dx = float(getattr(self, "dx_min", 1.0))
+        dy = float(getattr(self, "dy_min", 1.0))
+        dA = dx * dy
+
+        return 0.5 * float(np.dot(u, u) + np.dot(v, v)) * dA
+
+    def _enstrophy_from_stored(self) -> float:
+        """
+        Enstrophy:
+            𝓔 = 0.5 * ∫ ω² dA,   where ω = dv/dx - du/dy
+
+        Derivatives use Dx, Dy stored on the solver.
+        """
+        fields = self.fields
+        Dx = getattr(self, "Dx", None)
+        Dy = getattr(self, "Dy", None)
+
+        u = fields.u
+        v = fields.v
+
+        # If Dx/Dy not available, we cannot compute derivatives; return 0.0
+        if Dx is None or Dy is None:
+            return 0.0
+
+        dv_dx = Dx @ v
+        du_dy = Dy @ u
+        omega = dv_dx - du_dy
+
+        dx = float(getattr(self, "dx_min", 1.0))
+        dy = float(getattr(self, "dy_min", 1.0))
+        dA = dx * dy
+
+        return 0.5 * float(np.dot(omega, omega)) * dA
+
+    def _palinstrophy_from_stored(self) -> float:
+        """
+        Palinstrophy:
+            𝓟 = ∫ (ω_x² + ω_y²) dA
+
+        Uses Dx, Dy to compute ω_x, ω_y.
+        """
+        fields = self.fields
+        Dx = getattr(self, "Dx", None)
+        Dy = getattr(self, "Dy", None)
+
+        u = fields.u
+        v = fields.v
+
+        if Dx is None or Dy is None:
+            return 0.0
+
+        dv_dx = Dx @ v
+        du_dy = Dy @ u
+        omega = dv_dx - du_dy
+
+        omega_x = Dx @ omega
+        omega_y = Dy @ omega
+
+        dx = float(getattr(self, "dx_min", 1.0))
+        dy = float(getattr(self, "dy_min", 1.0))
+        dA = dx * dy
+
+        return float(np.dot(omega_x, omega_x) + np.dot(omega_y, omega_y)) * dA
+
+    # ---------------------------------------------------------------------
+    # Compatibility wrappers expected by solve()
+    # ---------------------------------------------------------------------
+    def _calculate_energy(self) -> float:
+        """
+        Compatibility wrapper used by solve(). Prefer solver-specific
+        _energy_from_stored() if available.
+        """
+        if hasattr(self, "_energy_from_stored"):
+            return float(self._energy_from_stored())
+        # allow subclass override
+        if hasattr(self, "_calculate_energy_override"):
+            return float(self._calculate_energy_override())
+        raise NotImplementedError(
+            "No energy diagnostic found. Implement _energy_from_stored() or _calculate_energy_override()."
+        )
+
+    def _calculate_enstrophy(self) -> float:
+        """
+        Compatibility wrapper used by solve(). Prefer solver-specific
+        _enstrophy_from_stored() if available.
+        """
+        if hasattr(self, "_enstrophy_from_stored"):
+            return float(self._enstrophy_from_stored())
+        if hasattr(self, "_calculate_enstrophy_override"):
+            return float(self._calculate_enstrophy_override())
+        raise NotImplementedError(
+            "No enstrophy diagnostic found. Implement _enstrophy_from_stored() or _calculate_enstrophy_override()."
+        )
+
+    def _calculate_palinstropy(self) -> float:
+        """
+        Compatibility wrapper used by solve(). The name 'palinstropy' (no 'h')
+        is the symbol used in solve()/TimeSeries; accept the stored implementation.
+        """
+        if hasattr(self, "_palinstrophy_from_stored"):
+            return float(self._palinstrophy_from_stored())
+        if hasattr(self, "_palinstropy_from_stored"):
+            return float(self._palinstropy_from_stored())
+        if hasattr(self, "_calculate_palinstropy_override"):
+            return float(self._calculate_palinstropy_override())
+        raise NotImplementedError(
+            "No palinstropy diagnostic found. Implement _palinstrophy_from_stored() "
+            "or _palinstropy_from_stored() or _calculate_palinstropy_override()."
+        )
