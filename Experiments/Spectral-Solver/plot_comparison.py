@@ -114,3 +114,15 @@ plt.suptitle(f'Ghia Benchmark Validation: Legendre vs Chebyshev\nRe={int(args.Re
 plt.tight_layout()
 plt.savefig(fig_dir / f"comparison_ghia_validation_Re{int(args.Re)}.pdf", bbox_inches='tight')
 print(f"  ✓ Ghia validation comparison saved")
+
+# %%
+# Convergence History Comparison
+# -------------------------------
+# Compare convergence behavior between Legendre and Chebyshev
+
+plotter_leg.plot_convergence(output_path=fig_dir / f"legendre_convergence_Re{int(args.Re)}.pdf")
+print(f"  ✓ Legendre convergence saved")
+
+plotter_cheb.plot_convergence(output_path=fig_dir / f"chebyshev_convergence_Re{int(args.Re)}.pdf")
+print(f"  ✓ Chebyshev convergence saved")
+
