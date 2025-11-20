@@ -20,9 +20,9 @@ def assemble_diffusion_convection_matrix(
     Optimized for memory access patterns with pre-fetched static data.
     """
 
-    n_cells     = mesh.cell_volumes.shape[0]
-    n_internal  = mesh.internal_faces.shape[0]
-    n_boundary  = mesh.boundary_faces.shape[0]
+    n_cells = mesh.cell_volumes.shape[0]
+    n_internal = mesh.internal_faces.shape[0]
+    n_boundary = mesh.boundary_faces.shape[0]
 
     # ––– pessimistic non-zero count ––––––––––––––––––––––––––––––––––––––––
     max_nnz = 8 * n_internal + 3 * n_boundary
@@ -30,7 +30,7 @@ def assemble_diffusion_convection_matrix(
     col  = np.zeros(max_nnz, dtype=np.int64)
     data = np.zeros(max_nnz, dtype=np.float64)
 
-    idx  = 0  # running write position
+    idx = 0  # running write position
     b = np.zeros(n_cells, dtype=np.float64)
 
     # ═══ PRE-FETCH STATIC DATA (HUGE MEMORY ACCESS OPTIMIZATION) ═══
@@ -66,7 +66,7 @@ def assemble_diffusion_convection_matrix(
         # —— face fluxes —— Moukalled 15.72 ——
         Flux_P_f =  convFlux_P_f + diffFlux_P_f
         Flux_N_f =  convFlux_N_f + diffFlux_N_f
-        Flux_V_f = convDC  # diffDC is always 0 for orthogonal grids 
+        Flux_V_f = convDC  # diffDC is always 0 for orthogonal grids
 
         # Matrix assembly (using pre-fetched P, N)
         row[idx] = P; col[idx] = P; data[idx] = Flux_P_f; idx += 1

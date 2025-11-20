@@ -1,7 +1,6 @@
-import numpy as np
 from numba import njit
 
-@njit(inline="always")
+@njit()
 def MUSCL(r):
     return max(0.0, min(2.0, 2.0 * r, 0.5 * (1 + r))) if r > 0 else 0.0
 
@@ -45,7 +44,6 @@ def compute_convective_stencil(
             phi_W = 2 * phi_N - phi_P  # Linear extrapolation from N to W
             r = (phi_P - phi_N) / (phi_N - phi_W + 1e-12)
 
-        if limiter == "MUSCL":
             psi = MUSCL(r)
 
         # Apply the limiter to get high-order face value

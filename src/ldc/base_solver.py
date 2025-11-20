@@ -1,11 +1,10 @@
 """Abstract base solver for lid-driven cavity problem."""
 
 from abc import ABC, abstractmethod
-from typing import Tuple
 import numpy as np
 from dataclasses import replace
 
-from .datastructures import Info, TimeSeries
+from .datastructures import TimeSeries
 
 
 class LidDrivenCavitySolver(ABC):
@@ -26,7 +25,7 @@ class LidDrivenCavitySolver(ABC):
     Config = None
     ResultFields = None
 
-    def __init__(self, config: Config = None, **kwargs):
+    def __init__(self, config=None, **kwargs):
         """Initialize solver with configuration.
 
         Parameters
@@ -155,7 +154,7 @@ class LidDrivenCavitySolver(ABC):
 
             # Only store residual history after first 10 iterations
             if i >= 10:
-                residual_history.append({'u': u_residual, 'v': v_residual})
+                residual_history.append({"u": u_residual, "v": v_residual})
 
             # Update previous iteration
             u_prev = self.arrays.u.copy()
@@ -180,7 +179,6 @@ class LidDrivenCavitySolver(ABC):
         # Store results
         self._store_results(residual_history, final_iter_count, is_converged)
 
-
     def save(self, filepath):
         """Save results to HDF5 file.
 
@@ -201,7 +199,7 @@ class LidDrivenCavitySolver(ABC):
         time_series_dict = asdict(self.time_series)
         metadata_dict = asdict(self.metadata)
 
-        with h5py.File(filepath, 'w') as f:
+        with h5py.File(filepath, "w") as f:
             # Save metadata as root-level attributes
             for key, val in metadata_dict.items():
                 # Skip None values and convert to appropriate types
@@ -214,23 +212,24 @@ class LidDrivenCavitySolver(ABC):
                     f.attrs[key] = val
 
             # Save fields in a fields group
-            fields_grp = f.create_group('fields')
+            fields_grp = f.create_group("fields")
             for key, val in fields_dict.items():
                 fields_grp.create_dataset(key, data=val)
 
             # Add velocity magnitude if u and v are present
-            if 'u' in fields_dict and 'v' in fields_dict:
+            if "u" in fields_dict and "v" in fields_dict:
                 import numpy as np
-                vel_mag = np.sqrt(fields_dict['u']**2 + fields_dict['v']**2)
-                fields_grp.create_dataset('velocity_magnitude', data=vel_mag)
+
+                vel_mag = np.sqrt(fields_dict["u"] ** 2 + fields_dict["v"] ** 2)
+                fields_grp.create_dataset("velocity_magnitude", data=vel_mag)
 
             # Save grid_points at root level for compatibility
-            if 'grid_points' in fields_dict:
-                f.create_dataset('grid_points', data=fields_dict['grid_points'])
+            if "grid_points" in fields_dict:
+                f.create_dataset("grid_points", data=fields_dict["grid_points"])
 
             # Save time series in a group
             if time_series_dict:
-                ts_grp = f.create_group('time_series')
+                ts_grp = f.create_group("time_series")
                 for key, val in time_series_dict.items():
                     if val is not None:
                         ts_grp.create_dataset(key, data=val)

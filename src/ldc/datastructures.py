@@ -3,46 +3,53 @@
 This module defines the configuration and result data structures
 for lid-driven cavity solvers (both FV and spectral).
 """
-from dataclasses import dataclass, field
-from typing import Optional, List, Dict, Any
+
+from dataclasses import dataclass
+from typing import Optional, List
 
 import numpy as np
 
-#========================================================
-# Shared Data Classes 
+# ========================================================
+# Shared Data Classes
 # =======================================================
 
 
 @dataclass
 class Fields:
     """Base spatial solution fields."""
+
     u: np.ndarray
     v: np.ndarray
     p: np.ndarray
     x: np.ndarray
     y: np.ndarray
     grid_points: np.ndarray
+    # Previous iteration (for under-relaxation)
+    u_prev: np.ndarray
+    v_prev: np.ndarray
 
 
 @dataclass
 class TimeSeries:
     """Time series data common to all solvers."""
+
     residual: List[float]
-    u_residual: List[float] = None
-    v_residual: List[float] = None
-    continuity_residual: List[float] = None
-    #TODO: Add the quantities stuff from the paper
+    u_residual: List[float]
+    v_residual: List[float]
+    continuity_residual: Optional[List[float]]
+    # TODO: Add the quantities stuff from the paper
 
 
 @dataclass
-class Info:
+class MetaConfig:
     """Base solver metadata, config and convergence info."""
+
     # Physics parameters (required)
-    Re: float
+    Re: float = 100
 
     # Grid parameters (with defaults)
-    nx: int = 64
-    ny: int = 64
+    nx: int = 16
+    ny: int = 16
 
     # Physics parameters (with defaults)
     lid_velocity: float = 1
@@ -52,20 +59,21 @@ class Info:
     # Solver config
     max_iterations: int = 500
     tolerance: float = 1e-4
-    method: str = None
+    method: str = ""
 
     # Convergence info
-    iterations: int = None
+    iterations: int = 0
     converged: bool = False
-    final_residual: float = None
+    final_residual: float = 10000
 
 
-#=============================================================
+# =============================================================
 # Finite Volume specific data classes
 # ============================================================
 
+
 @dataclass
-class FVinfo(Info):
+class FVinfo(MetaConfig):
     """FV-specific metadata with discretization parameters."""
     convection_scheme: str = "Upwind"
     limiter: str = "MUSCL"
@@ -144,11 +152,13 @@ class FVSolverFields:
 
 #=====================================================
 # Spectral Data Classes
-#=====================================================
+# =====================================================
+
 
 @dataclass
-class SpectralInfo(Info):
+class SpectralInfo(MetaConfig):
     """Spectral-specific metadata with discretization parameters."""
+
     Nx: int = 64
     Ny: int = 64
     basis_type: str = "legendre"  # 'legendre' or 'chebyshev'
@@ -256,5 +266,3 @@ class SpectralSolverFields:
             dp_dx_inner=np.zeros(n_nodes_inner),
             dp_dy_inner=np.zeros(n_nodes_inner),
         )
-
-

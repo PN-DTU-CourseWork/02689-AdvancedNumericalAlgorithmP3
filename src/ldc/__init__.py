@@ -12,7 +12,7 @@ LidDrivenCavitySolver (abstract base - defines problem)
 
 from .base_solver import LidDrivenCavitySolver
 from .datastructures import (
-    Info,
+    MetaConfig,
     FVinfo,
     SpectralInfo,
     Fields,
@@ -29,7 +29,7 @@ __all__ = [
     # Base classes
     "LidDrivenCavitySolver",
     # Configurations
-    "Info",
+    "MetaConfig",
     "FVinfo",
     "SpectralInfo",
     # Data structures

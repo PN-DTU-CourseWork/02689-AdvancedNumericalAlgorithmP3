@@ -1,6 +1,7 @@
 import numpy as np
 from numba import njit, prange
 
+
 @njit(parallel=True)
 def velocity_correction(mesh, grad_p_prime_cell, bold_D_cell, u_prime=None, v_prime=None):
     """

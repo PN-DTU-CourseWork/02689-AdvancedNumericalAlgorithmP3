@@ -25,9 +25,8 @@ from numba.experimental import jitclass
 
 mesh_data_spec = [
     # --- Cell Geometry ---
-    ("cell_volumes", types.float64[:]),          # Cell volumes V_C
-    ("cell_centers", types.float64[:, :]),       # Cell centroids x_C (shape: [n_cells, 2])
-
+    ("cell_volumes", types.float64[:]),  # Cell volumes V_C
+    ("cell_centers", types.float64[:, :]),  # Cell centroids x_C (shape: [n_cells, 2])
     # --- Face Geometry ---
     ("face_areas", types.float64[:]),            # Face area magnitudes |S_f| (lengths in 2D)
     ("face_centers", types.float64[:, :]),       # Face centroids x_f [n_faces, 2]
@@ -52,7 +51,6 @@ mesh_data_spec = [
     ("boundary_values", types.float64[:, :]),    # BC values per face: [u_BC, v_BC, p_BC]
     ("d_Cb", types.float64[:]),                  # Distance from cell center to boundary face center (Moukalled 8.6.8)
 ]
-
 
 
 @jitclass(mesh_data_spec)

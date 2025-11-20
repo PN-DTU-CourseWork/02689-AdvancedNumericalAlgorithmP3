@@ -382,6 +382,8 @@ class SpectralSolver(LidDrivenCavitySolver):
             x=self.x_full.ravel(),
             y=self.y_full.ravel(),
             grid_points=np.column_stack([self.x_full.ravel(), self.y_full.ravel()]),
+            u_prev=self.arrays.u_prev,
+            v_prev=self.arrays.v_prev,
         )
 
     def _interpolate_pressure_to_full_grid(self):

@@ -34,7 +34,7 @@ def _build_face_connectivity(cells):
             (cell_nodes[0], cell_nodes[1]),
             (cell_nodes[1], cell_nodes[2]),
             (cell_nodes[2], cell_nodes[3]),
-            (cell_nodes[3], cell_nodes[0])
+            (cell_nodes[3], cell_nodes[0]),
         ]
 
         for n0, n1 in edges:
@@ -62,7 +62,9 @@ def _build_face_connectivity(cells):
 
 
 @njit
-def _compute_face_geometry(points, face_vertices, owner_cells, neighbor_cells, cell_centers):
+def _compute_face_geometry(
+    points, face_vertices, owner_cells, neighbor_cells, cell_centers
+):
     """Compute face centers, areas, and normal vectors."""
     n_faces = face_vertices.shape[0]
 
@@ -82,7 +84,7 @@ def _compute_face_geometry(points, face_vertices, owner_cells, neighbor_cells, c
 
         # Edge vector and length
         edge = v1 - v0
-        length = np.sqrt(edge[0]**2 + edge[1]**2)
+        length = np.sqrt(edge[0] ** 2 + edge[1] ** 2)
         face_areas[f] = length
 
         # Normal vector (rotate edge by 90 degrees)
@@ -124,19 +126,19 @@ def _compute_geometric_factors(n_faces, owner_cells, neighbor_cells,
         if neighbor >= 0:
             # Internal face
             vector_d_CE[f] = cell_centers[neighbor] - cell_centers[owner]
-            d_mag = np.sqrt(vector_d_CE[f, 0]**2 + vector_d_CE[f, 1]**2)
+            d_mag = np.sqrt(vector_d_CE[f, 0] ** 2 + vector_d_CE[f, 1] ** 2)
 
             if d_mag > 1e-12:
                 # Distance from owner to face
                 d_Pf = face_centers[f] - cell_centers[owner]
-                delta_Pf = np.sqrt(d_Pf[0]**2 + d_Pf[1]**2)
+                delta_Pf = np.sqrt(d_Pf[0] ** 2 + d_Pf[1] ** 2)
 
                 # Interpolation factor (for Cartesian grid, this is 0.5 for internal faces)
                 face_interp_factors[f] = delta_Pf / d_mag
         else:
             # Boundary face
             d_boundary = face_centers[f] - cell_centers[owner]
-            d_Cb[f] = np.sqrt(d_boundary[0]**2 + d_boundary[1]**2)
+            d_Cb[f] = np.sqrt(d_boundary[0] ** 2 + d_boundary[1] ** 2)
             vector_d_CE[f] = d_boundary
 
     return vector_d_CE, face_interp_factors, d_Cb
@@ -174,7 +176,6 @@ def create_structured_mesh_2d(nx: int, ny: int, Lx: float = 1.0, Ly: float = 1.0
 
     # Flatten to get vertex coordinates
     points = np.column_stack([X.ravel(), Y.ravel()])
-    n_vertices = len(points)
 
     # 2. Build quad cells
     # Each cell is defined by 4 vertices in counter-clockwise order:

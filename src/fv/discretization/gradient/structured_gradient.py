@@ -3,6 +3,7 @@
 For structured grids, we can compute gradients using simple central differences
 instead of the complex least-squares approach.
 """
+
 import numpy as np
 from numba import njit, prange
 

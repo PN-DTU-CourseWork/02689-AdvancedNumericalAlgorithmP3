@@ -17,10 +17,9 @@ def relax_momentum_equation(rhs, A_diag, phi, alpha):
         a = A_diag[i]
         a_relaxed = a * inv_alpha
         relaxed_diagonal[i] = a_relaxed
-        relaxed_rhs[i] = rhs[i] + scale * a * phi[i]  
+        relaxed_rhs[i] = rhs[i] + scale * a * phi[i]
 
     return relaxed_diagonal, relaxed_rhs
-
 
 
 @njit(parallel=True, cache=True)
@@ -74,7 +73,7 @@ def interpolate_to_face(mesh, quantity, out=None):
             interpolated_quantity = np.zeros((n_faces, 1), dtype=np.float64)
         else:
             interpolated_quantity = out
-        
+
         # Process internal faces
         for i in prange(n_internal):
             f = mesh.internal_faces[i]
@@ -88,7 +87,7 @@ def interpolate_to_face(mesh, quantity, out=None):
             f = mesh.boundary_faces[i]
             P = mesh.owner_cells[f]
             interpolated_quantity[f, 0] = quantity[P]
-            
+
     else:
         # Vector field - optimized for common 2D case
         n_components = quantity.shape[1]
@@ -96,7 +95,7 @@ def interpolate_to_face(mesh, quantity, out=None):
             interpolated_quantity = np.zeros((n_faces, n_components), dtype=np.float64)
         else:
             interpolated_quantity = out
-        
+
         if n_components == 2:
             # Optimized 2D vector case with manual unrolling
             for i in prange(n_internal):
@@ -104,9 +103,13 @@ def interpolate_to_face(mesh, quantity, out=None):
                 P = mesh.owner_cells[f]
                 N = mesh.neighbor_cells[f]
                 gf = mesh.face_interp_factors[f]
-                
-                interpolated_quantity[f, 0] = gf * quantity[N, 0] + (1.0 - gf) * quantity[P, 0]
-                interpolated_quantity[f, 1] = gf * quantity[N, 1] + (1.0 - gf) * quantity[P, 1]
+
+                interpolated_quantity[f, 0] = (
+                    gf * quantity[N, 0] + (1.0 - gf) * quantity[P, 0]
+                )
+                interpolated_quantity[f, 1] = (
+                    gf * quantity[N, 1] + (1.0 - gf) * quantity[P, 1]
+                )
 
             for i in prange(n_boundary):
                 f = mesh.boundary_faces[i]
@@ -120,9 +123,11 @@ def interpolate_to_face(mesh, quantity, out=None):
                 P = mesh.owner_cells[f]
                 N = mesh.neighbor_cells[f]
                 gf = mesh.face_interp_factors[f]
-                
+
                 for c in range(n_components):
-                    interpolated_quantity[f, c] = gf * quantity[N, c] + (1.0 - gf) * quantity[P, c]
+                    interpolated_quantity[f, c] = (
+                        gf * quantity[N, c] + (1.0 - gf) * quantity[P, c]
+                    )
 
             for i in prange(n_boundary):
                 f = mesh.boundary_faces[i]

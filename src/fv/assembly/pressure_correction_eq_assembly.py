@@ -1,5 +1,5 @@
 import numpy as np
-from numba import njit, prange
+from numba import njit
 
 @njit(cache=True, fastmath=True, boundscheck=False, error_model='numpy')
 def assemble_pressure_correction_matrix(mesh, rho):
@@ -7,11 +7,10 @@ def assemble_pressure_correction_matrix(mesh, rho):
     Assemble pressure correction equation matrix.
     Optimized for memory access patterns with pre-fetched static data.
     """
-    n_cells = mesh.cell_volumes.shape[0]
     n_internal = mesh.internal_faces.shape[0]
 
-    # Pessimistic non-zero count 
-    max_nnz = 4 * n_internal  
+    # Pessimistic non-zero count
+    max_nnz = 4 * n_internal
     row = np.zeros(max_nnz, dtype=np.int64)
     col = np.zeros(max_nnz, dtype=np.int64)
     data = np.zeros(max_nnz, dtype=np.float64)
@@ -31,26 +30,33 @@ def assemble_pressure_correction_matrix(mesh, rho):
         P = owner_cells[f]
         N = neighbor_cells[f]
 
-        # Pre-fetch vector components (single memory access each)
+        # Pre-fetch vector components
         E_f = vector_E_f[f]
         d_CE = vector_d_CE[f]
-        E_f_0 = E_f[0]
-        E_f_1 = E_f[1]
-        d_CE_0 = d_CE[0]
-        d_CE_1 = d_CE[1]
 
-        # Manual norm calculations (faster than np.linalg.norm)
-        E_mag = np.sqrt(E_f_0 * E_f_0 + E_f_1 * E_f_1)
-        d_mag = np.sqrt(d_CE_0 * d_CE_0 + d_CE_1 * d_CE_1)
+        # Compute vector norms
+        E_mag = np.linalg.norm(E_f)
+        d_mag = np.linalg.norm(d_CE)
 
         # Compute conductance
         D_f = rho * E_mag / d_mag
 
         # Matrix coefficients
-        row[idx] = P; col[idx] = P; data[idx] = D_f; idx += 1
-        row[idx] = P; col[idx] = N; data[idx] = -D_f; idx += 1
-        row[idx] = N; col[idx] = N; data[idx] = D_f; idx += 1
-        row[idx] = N; col[idx] = P; data[idx] = -D_f; idx += 1
+        row[idx] = P
+        col[idx] = P
+        data[idx] = D_f
+        idx += 1
+        row[idx] = P
+        col[idx] = N
+        data[idx] = -D_f
+        idx += 1
+        row[idx] = N
+        col[idx] = N
+        data[idx] = D_f
+        idx += 1
+        row[idx] = N
+        col[idx] = P
+        data[idx] = -D_f
+        idx += 1
 
     return row[:idx], col[:idx], data[:idx]
-
