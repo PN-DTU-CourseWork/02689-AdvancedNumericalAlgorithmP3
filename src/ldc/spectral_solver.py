@@ -59,24 +59,25 @@ class SpectralSolver(LidDrivenCavitySolver):
         # Build differentiation matrices
         self._build_diff_matrices()
 
+        # Cache grid shapes
+        self.shape_full = (self.config.Nx + 1, self.config.Ny + 1)
+        self.shape_inner = (self.config.Nx - 1, self.config.Ny - 1)
+
         # Allocate solver arrays
-        n_nodes_full = (self.config.Nx + 1) * (self.config.Ny + 1)
-        n_nodes_inner = (self.config.Nx - 1) * (self.config.Ny - 1)
+        n_nodes_full = self.shape_full[0] * self.shape_full[1]
+        n_nodes_inner = self.shape_inner[0] * self.shape_inner[1]
         self.arrays = SpectralSolverFields.allocate(n_nodes_full, n_nodes_inner)
 
         # Create persistent 2D views (avoid repeated reshaping)
         # These are VIEWS, not copies - modifications affect the underlying 1D arrays
-        shape_full = (self.config.Nx + 1, self.config.Ny + 1)
-        shape_inner = (self.config.Nx - 1, self.config.Ny - 1)
+        self.u_2d = self.arrays.u.reshape(self.shape_full)
+        self.v_2d = self.arrays.v.reshape(self.shape_full)
+        self.u_stage_2d = self.arrays.u_stage.reshape(self.shape_full)
+        self.v_stage_2d = self.arrays.v_stage.reshape(self.shape_full)
 
-        self.u_2d = self.arrays.u.reshape(shape_full)
-        self.v_2d = self.arrays.v.reshape(shape_full)
-        self.u_stage_2d = self.arrays.u_stage.reshape(shape_full)
-        self.v_stage_2d = self.arrays.v_stage.reshape(shape_full)
-
-        self.p_2d = self.arrays.p.reshape(shape_inner)
-        self.dp_dx_inner_2d = self.arrays.dp_dx_inner.reshape(shape_inner)
-        self.dp_dy_inner_2d = self.arrays.dp_dy_inner.reshape(shape_inner)
+        self.p_2d = self.arrays.p.reshape(self.shape_inner)
+        self.dp_dx_inner_2d = self.arrays.dp_dx_inner.reshape(self.shape_inner)
+        self.dp_dy_inner_2d = self.arrays.dp_dy_inner.reshape(self.shape_inner)
 
         # Initialize lid velocity with corner smoothing
         self._initialize_lid_velocity()
@@ -132,8 +133,7 @@ class SpectralSolver(LidDrivenCavitySolver):
         full_2d : np.ndarray
             Field on full grid, shape (Nx+1, Ny+1)
         """
-        Nx, Ny = self.config.Nx, self.config.Ny
-        full_2d = np.zeros((Nx + 1, Ny + 1))
+        full_2d = np.zeros(self.shape_full)
 
         # Copy interior values
         full_2d[1:-1, 1:-1] = inner_2d
@@ -237,8 +237,6 @@ class SpectralSolver(LidDrivenCavitySolver):
         -------
         self.arrays.R_u, self.arrays.R_v (full grid), self.arrays.R_p (inner grid)
         """
-        Nx, Ny = self.config.Nx, self.config.Ny
-
         # Compute velocity derivatives on full grid
         self.arrays.du_dx[:] = self.Dx @ u
         self.arrays.du_dy[:] = self.Dy @ u
@@ -264,7 +262,7 @@ class SpectralSolver(LidDrivenCavitySolver):
         # Continuity residual on INNER grid: R_p = -β²(∂u/∂x + ∂v/∂y)
         # Compute divergence on full grid, then restrict to inner grid
         divergence_full = self.arrays.du_dx + self.arrays.dv_dy
-        divergence_2d = divergence_full.reshape((Nx + 1, Ny + 1))
+        divergence_2d = divergence_full.reshape(self.shape_full)
         divergence_inner = divergence_2d[1:-1, 1:-1].ravel()
 
         # Pressure residual on inner grid
@@ -278,27 +276,21 @@ class SpectralSolver(LidDrivenCavitySolver):
         u, v : np.ndarray
             Velocity fields (1D flat arrays) to modify in place
         """
-        # Create 2D views for boundary condition enforcement
-        u_2d = u.reshape((self.config.Nx + 1, self.config.Ny + 1))
-        v_2d = v.reshape((self.config.Nx + 1, self.config.Ny + 1))
+        # Create 2D views (cheap - just metadata)
+        u_2d = u.reshape(self.shape_full)
+        v_2d = v.reshape(self.shape_full)
 
-        # West boundary (x = 0)
-        u_2d[0, :] = 0.0
-        v_2d[0, :] = 0.0
+        # No-slip on all boundaries
+        u_2d[0, :] = 0.0   # West
+        u_2d[-1, :] = 0.0  # East
+        u_2d[:, 0] = 0.0   # South
+        v_2d[0, :] = 0.0   # West
+        v_2d[-1, :] = 0.0  # East
+        v_2d[:, 0] = 0.0   # South
+        v_2d[:, -1] = 0.0  # North
 
-        # East boundary (x = Lx)
-        u_2d[-1, :] = 0.0
-        v_2d[-1, :] = 0.0
-
-        # South boundary (y = 0)
-        u_2d[:, 0] = 0.0
-        v_2d[:, 0] = 0.0
-
-        # North boundary (y = Ly) - moving lid
-        v_2d[:, -1] = 0.0
+        # Moving lid on north boundary
         u_2d[:, -1] = self.config.lid_velocity
-
-        # Apply corner smoothing to lid velocity
         self._apply_corner_smoothing(u_2d)
 
     def _compute_adaptive_timestep(self):
@@ -309,26 +301,16 @@ class SpectralSolver(LidDrivenCavitySolver):
         float
             Adaptive timestep ∆τ
         """
-        # Maximum velocities
-        u_max = np.max(np.abs(self.arrays.u))
-        v_max = np.max(np.abs(self.arrays.v))
-
-        # Avoid division by zero
-        if u_max < 1e-10:
-            u_max = self.config.lid_velocity
-        if v_max < 1e-10:
-            v_max = 1e-10
+        # Maximum velocities (avoid division by zero)
+        u_max = max(np.max(np.abs(self.arrays.u)), self.config.lid_velocity)
+        v_max = max(np.max(np.abs(self.arrays.v)), 1e-10)
 
         # Wave speeds: λ_x and λ_y from equation (9)
-        beta = np.sqrt(self.config.beta_squared)
         nu = 1.0 / self.config.Re
-
         lambda_x = (u_max + np.sqrt(u_max**2 + self.config.beta_squared)) / self.dx_min + nu / self.dx_min**2
         lambda_y = (v_max + np.sqrt(v_max**2 + self.config.beta_squared)) / self.dy_min + nu / self.dy_min**2
 
-        # Adaptive timestep
-        dt = self.config.CFL / (lambda_x + lambda_y)
-        return dt
+        return self.config.CFL / (lambda_x + lambda_y)
 
     def step(self):
         """Perform one RK4 pseudo time-step.
@@ -349,34 +331,25 @@ class SpectralSolver(LidDrivenCavitySolver):
         # Compute adaptive timestep
         dt = self._compute_adaptive_timestep()
 
-        # 4-stage RK4 from equations (5) in assignment
-        # φ^(1) = φ^n + (1/4)∆τ R(φ^n)
-        self._compute_residuals(a.u, a.v, a.p)
-        a.u_stage[:] = a.u + 0.25 * dt * a.R_u
-        a.v_stage[:] = a.v + 0.25 * dt * a.R_v
-        a.p_stage[:] = a.p + 0.25 * dt * a.R_p  # Inner grid
-        self._enforce_boundary_conditions(a.u_stage, a.v_stage)
+        # 4-stage RK4: φ^(i) = φ^n + α_i·∆τ·R(φ^(i-1))
+        rk4_coeffs = [0.25, 1.0/3.0, 0.5, 1.0]
+        u_in, v_in, p_in = a.u, a.v, a.p
 
-        # φ^(2) = φ^n + (1/3)∆τ R(φ^(1))
-        self._compute_residuals(a.u_stage, a.v_stage, a.p_stage)
-        a.u_stage[:] = a.u + (1.0/3.0) * dt * a.R_u
-        a.v_stage[:] = a.v + (1.0/3.0) * dt * a.R_v
-        a.p_stage[:] = a.p + (1.0/3.0) * dt * a.R_p  # Inner grid
-        self._enforce_boundary_conditions(a.u_stage, a.v_stage)
+        for i, alpha in enumerate(rk4_coeffs):
+            self._compute_residuals(u_in, v_in, p_in)
 
-        # φ^(3) = φ^n + (1/2)∆τ R(φ^(2))
-        self._compute_residuals(a.u_stage, a.v_stage, a.p_stage)
-        a.u_stage[:] = a.u + 0.5 * dt * a.R_u
-        a.v_stage[:] = a.v + 0.5 * dt * a.R_v
-        a.p_stage[:] = a.p + 0.5 * dt * a.R_p  # Inner grid
-        self._enforce_boundary_conditions(a.u_stage, a.v_stage)
-
-        # φ^(n+1) = φ^n + ∆τ R(φ^(3))
-        self._compute_residuals(a.u_stage, a.v_stage, a.p_stage)
-        a.u[:] = a.u + dt * a.R_u
-        a.v[:] = a.v + dt * a.R_v
-        a.p[:] = a.p + dt * a.R_p  # Inner grid
-        self._enforce_boundary_conditions(a.u, a.v)
+            # Last stage: write to final arrays; otherwise use staging arrays
+            if i < 3:
+                a.u_stage[:] = a.u + alpha * dt * a.R_u
+                a.v_stage[:] = a.v + alpha * dt * a.R_v
+                a.p_stage[:] = a.p + alpha * dt * a.R_p
+                self._enforce_boundary_conditions(a.u_stage, a.v_stage)
+                u_in, v_in, p_in = a.u_stage, a.v_stage, a.p_stage
+            else:
+                a.u[:] = a.u + alpha * dt * a.R_u
+                a.v[:] = a.v + alpha * dt * a.R_v
+                a.p[:] = a.p + alpha * dt * a.R_p
+                self._enforce_boundary_conditions(a.u, a.v)
 
         return a.u, a.v, a.p
 
@@ -387,28 +360,15 @@ class SpectralSolver(LidDrivenCavitySolver):
         for output/visualization purposes.
         """
         # Interpolate pressure from inner to full grid for output
-        p_full = self._interpolate_pressure_to_full_grid()
+        p_full_2d = self._extrapolate_to_full_grid(self.p_2d)
 
         return SpectralResultFields(
             u=self.arrays.u,
             v=self.arrays.v,
-            p=p_full,
+            p=p_full_2d.ravel(),
             x=self.x_full.ravel(),
             y=self.y_full.ravel(),
             grid_points=np.column_stack([self.x_full.ravel(), self.y_full.ravel()]),
             u_prev=self.arrays.u_prev,
             v_prev=self.arrays.v_prev,
         )
-
-    def _interpolate_pressure_to_full_grid(self):
-        """Interpolate pressure from inner grid to full grid for output.
-
-        Returns
-        -------
-        p_full : np.ndarray
-            Pressure on full (Nx+1) × (Ny+1) grid (flattened)
-        """
-        # Extrapolate pressure from inner to full grid (using persistent 2D view)
-        p_full_2d = self._extrapolate_to_full_grid(self.p_2d)
-
-        return p_full_2d.ravel()
