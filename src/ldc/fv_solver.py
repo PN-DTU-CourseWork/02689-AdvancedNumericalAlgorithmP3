@@ -4,20 +4,28 @@ This module implements a collocated finite volume solver using
 SIMPLE algorithm for pressure-velocity coupling.
 """
 
-import numpy as np
 from scipy.sparse import csr_matrix
 
 from .base_solver import LidDrivenCavitySolver
 from .datastructures import FVinfo, FVFields
 
 from fv.assembly.convection_diffusion_matrix import assemble_diffusion_convection_matrix
-from fv.discretization.gradient.structured_gradient import compute_cell_gradients_structured
+from fv.discretization.gradient.structured_gradient import (
+    compute_cell_gradients_structured,
+)
 from fv.linear_solvers.scipy_solver import scipy_solver
 from fv.assembly.rhie_chow import mdot_calculation, rhie_chow_velocity
-from fv.assembly.pressure_correction_eq_assembly import assemble_pressure_correction_matrix
+from fv.assembly.pressure_correction_eq_assembly import (
+    assemble_pressure_correction_matrix,
+)
 from fv.assembly.divergence import compute_divergence_from_face_fluxes
 from fv.core.corrections import velocity_correction
-from fv.core.helpers import bold_Dv_calculation, interpolate_to_face, interpolate_velocity_to_face, relax_momentum_equation
+from fv.core.helpers import (
+    bold_Dv_calculation,
+    interpolate_to_face,
+    interpolate_velocity_to_face,
+    relax_momentum_equation,
+)
 
 
 class FVSolver(LidDrivenCavitySolver):
@@ -50,12 +58,13 @@ class FVSolver(LidDrivenCavitySolver):
 
         # Create mesh
         from meshing.simple_structured import create_structured_mesh_2d
+
         self.mesh = create_structured_mesh_2d(
             nx=self.config.nx,
             ny=self.config.ny,
             Lx=self.config.Lx,
             Ly=self.config.Ly,
-            lid_velocity=self.config.lid_velocity
+            lid_velocity=self.config.lid_velocity,
         )
 
         # Get dimensions from mesh
@@ -76,7 +85,9 @@ class FVSolver(LidDrivenCavitySolver):
         # Cache commonly used values
         self.n_cells = n_cells
 
-    def _solve_momentum_equation(self, component_idx, phi, grad_phi, phi_prev_iter, grad_p_component):
+    def _solve_momentum_equation(
+        self, component_idx, phi, grad_phi, phi_prev_iter, grad_p_component
+    ):
         """Solve a single momentum equation (u or v).
 
         Parameters
@@ -101,16 +112,21 @@ class FVSolver(LidDrivenCavitySolver):
         """
         # Assemble momentum equation
         row, col, data, b = assemble_diffusion_convection_matrix(
-            self.mesh, self.fields.mdot, self.mu,
-            component_idx, phi=phi,
-            scheme=self.config.convection_scheme
+            self.mesh,
+            self.fields.mdot,
+            self.mu,
+            component_idx,
+            phi=phi,
+            scheme=self.config.convection_scheme,
         )
         A = csr_matrix((data, (row, col)), shape=(self.n_cells, self.n_cells))
         A_diag = A.diagonal()
         rhs = b - grad_p_component * self.mesh.cell_volumes
 
         # Apply under-relaxation
-        relaxed_A_diag, rhs = relax_momentum_equation(rhs, A_diag, phi_prev_iter, self.config.alpha_uv)
+        relaxed_A_diag, rhs = relax_momentum_equation(
+            rhs, A_diag, phi_prev_iter, self.config.alpha_uv
+        )
         A.setdiag(relaxed_A_diag)
 
         # Solve
@@ -126,29 +142,47 @@ class FVSolver(LidDrivenCavitySolver):
         u, v, p : np.ndarray
             Updated velocity and pressure fields
         """
-        a = self.fields# Shorthand for readability
+        a = self.fields  # Shorthand for readability
 
         # Swap buffers at start (zero-copy)
         a.u, a.u_prev = a.u_prev, a.u
         a.v, a.v_prev = a.v_prev, a.v
 
         # Compute pressure gradient (no limiter for pressure) - reuse buffers
-        compute_cell_gradients_structured(self.mesh, a.p, use_limiter=False, out=a.grad_p)
+        compute_cell_gradients_structured(
+            self.mesh, a.p, use_limiter=False, out=a.grad_p
+        )
         interpolate_to_face(self.mesh, a.grad_p, out=a.grad_p_bar)
 
         # Compute velocity gradients (with limiter) - reuse buffers
-        compute_cell_gradients_structured(self.mesh, a.u_prev, use_limiter=True, out=a.grad_u)
-        compute_cell_gradients_structured(self.mesh, a.v_prev, use_limiter=True, out=a.grad_v)
+        compute_cell_gradients_structured(
+            self.mesh, a.u_prev, use_limiter=True, out=a.grad_u
+        )
+        compute_cell_gradients_structured(
+            self.mesh, a.v_prev, use_limiter=True, out=a.grad_v
+        )
 
         # Solve momentum equations
-        u_star, A_u_diag = self._solve_momentum_equation(0, a.u_prev, a.grad_u, a.u_prev, a.grad_p[:, 0])
-        v_star, A_v_diag = self._solve_momentum_equation(1, a.v_prev, a.grad_v, a.v_prev, a.grad_p[:, 1])
+        u_star, A_u_diag = self._solve_momentum_equation(
+            0, a.u_prev, a.grad_u, a.u_prev, a.grad_p[:, 0]
+        )
+        v_star, A_v_diag = self._solve_momentum_equation(
+            1, a.v_prev, a.grad_v, a.v_prev, a.grad_p[:, 1]
+        )
 
         # Pressure correction - reuse buffers
         bold_Dv_calculation(self.mesh, A_u_diag, A_v_diag, out=a.bold_D)
         interpolate_to_face(self.mesh, a.bold_D, out=a.bold_D_bar)
 
-        rhie_chow_velocity(self.mesh, u_star, v_star, a.grad_p_bar, a.grad_p, a.bold_D_bar, out=a.U_star_rc)
+        rhie_chow_velocity(
+            self.mesh,
+            u_star,
+            v_star,
+            a.grad_p_bar,
+            a.grad_p,
+            a.bold_D_bar,
+            out=a.U_star_rc,
+        )
 
         mdot_calculation(self.mesh, self.rho, a.U_star_rc, out=a.mdot_star)
 
@@ -166,8 +200,12 @@ class FVSolver(LidDrivenCavitySolver):
         p_prime = scipy_solver(A_p, rhs_p)
 
         # Velocity and pressure corrections - reuse buffers
-        compute_cell_gradients_structured(self.mesh, p_prime, use_limiter=False, out=a.grad_p_prime)
-        velocity_correction(self.mesh, a.grad_p_prime, a.bold_D, u_prime=a.u_prime, v_prime=a.v_prime)
+        compute_cell_gradients_structured(
+            self.mesh, p_prime, use_limiter=False, out=a.grad_p_prime
+        )
+        velocity_correction(
+            self.mesh, a.grad_p_prime, a.bold_D, u_prime=a.u_prime, v_prime=a.v_prime
+        )
 
         # Update velocity and pressure
         a.u = u_star + a.u_prime
@@ -175,6 +213,8 @@ class FVSolver(LidDrivenCavitySolver):
         a.p += self.config.alpha_p * p_prime
 
         # Update mass flux
-        interpolate_velocity_to_face(self.mesh, a.u_prime, a.v_prime, out=a.U_prime_face)
+        interpolate_velocity_to_face(
+            self.mesh, a.u_prime, a.v_prime, out=a.U_prime_face
+        )
         mdot_calculation(self.mesh, self.rho, a.U_prime_face, out=a.mdot_prime)
         a.mdot = a.mdot_star + a.mdot_prime

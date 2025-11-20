@@ -7,4 +7,4 @@ from scipy.sparse.linalg import spsolve
 
 def scipy_solver(A_csr: csr_matrix, b_np: np.ndarray):
     """Solve A x = b using SciPy sparse direct solver (spsolve)."""
-    return spsolve(A_csr, b_np) 
+    return spsolve(A_csr, b_np)

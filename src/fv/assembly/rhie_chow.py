@@ -1,21 +1,21 @@
 import numpy as np
-from numba import njit, prange
+from numba import njit
 
 
 @njit(inline="always", cache=True, fastmath=True, nogil=True)
-def rhie_chow_velocity_internal_faces(mesh, u_star, v_star, grad_p_bar, grad_p, bold_D_bar, U_faces):
+def rhie_chow_velocity_internal_faces(
+    mesh, u_star, v_star, grad_p_bar, grad_p, bold_D_bar, U_faces
+):
     """
     Compute Rhie-Chow velocity at internal faces.
     Optimized for memory access patterns with pre-fetched static data.
     """
     n_internal = mesh.internal_faces.shape[0]
-    n_total_faces = mesh.vector_S_f.shape[0]
 
     # ═══ PRE-FETCH STATIC DATA FOR MEMORY OPTIMIZATION ═══
     internal_faces = mesh.internal_faces
     owner_cells = mesh.owner_cells
     neighbor_cells = mesh.neighbor_cells
-    vector_S_f = mesh.vector_S_f
     face_interp_factors = mesh.face_interp_factors
 
     # ––– internal faces (OPTIMIZED LOOP) –––––––––––––––––––––––––––––––––––
@@ -149,7 +149,9 @@ def rhie_chow_velocity(mesh, u_star, v_star, grad_p_bar, grad_p, bold_D_bar, out
         U_faces = out
 
     # Compute internal faces with optimized memory access
-    rhie_chow_velocity_internal_faces(mesh, u_star, v_star, grad_p_bar, grad_p, bold_D_bar, U_faces)
+    rhie_chow_velocity_internal_faces(
+        mesh, u_star, v_star, grad_p_bar, grad_p, bold_D_bar, U_faces
+    )
 
     # Apply boundary conditions with optimized memory access
     rhie_chow_velocity_boundary_faces(mesh, U_faces)

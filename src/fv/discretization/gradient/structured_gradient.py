@@ -3,12 +3,15 @@
 For structured grids, we can compute gradients using simple central differences
 instead of the complex least-squares approach.
 """
+
 import numpy as np
 from numba import njit, prange
 
 
 @njit(parallel=True, cache=True)
-def compute_cell_gradients_structured(mesh, u, pinned_idx=0, use_limiter=True, out=None):
+def compute_cell_gradients_structured(
+    mesh, u, pinned_idx=0, use_limiter=True, out=None
+):
     """Compute cell gradients using central differences for structured Cartesian grids.
 
     This is much simpler and faster than least-squares for regular grids.

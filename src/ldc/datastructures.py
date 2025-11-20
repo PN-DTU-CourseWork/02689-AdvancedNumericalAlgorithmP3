@@ -3,19 +3,21 @@
 This module defines the configuration and result data structures
 for lid-driven cavity solvers (both FV and spectral).
 """
+
 from dataclasses import dataclass
 from typing import Optional, List
 
 import numpy as np
 
-#========================================================
-# Shared Data Classes 
+# ========================================================
+# Shared Data Classes
 # =======================================================
 
 
 @dataclass
 class Fields:
     """Base spatial solution fields."""
+
     u: np.ndarray
     v: np.ndarray
     p: np.ndarray
@@ -25,24 +27,23 @@ class Fields:
     # Previous iteration (for under-relaxation)
     u_prev: np.ndarray
     v_prev: np.ndarray
-    
-
-
 
 
 @dataclass
 class TimeSeries:
     """Time series data common to all solvers."""
+
     iter_residual: List[float]
     u_residual: List[float]
     v_residual: List[float]
     continuity_residual: Optional[List[float]]
-    #TODO: Add the quantities stuff from the paper
+    # TODO: Add the quantities stuff from the paper
 
 
 @dataclass
 class MetaConfig:
     """Base solver metadata, config and convergence info."""
+
     # Physics parameters (required)
     Re: float = 100
 
@@ -66,13 +67,15 @@ class MetaConfig:
     final_residual: float = 10000
 
 
-#=============================================================
+# =============================================================
 # Finite Volume specific data classes
 # ============================================================
+
 
 @dataclass
 class FVinfo(MetaConfig):
     """FV-specific metadata with discretization parameters."""
+
     convection_scheme: str = ""
     alpha_uv: float = 0.7
     alpha_p: float = 0.3
@@ -81,6 +84,7 @@ class FVinfo(MetaConfig):
 @dataclass
 class FVFields(Fields):
     """Internal FV solver arrays - current state, previous iteration, and work buffers."""
+
     # Current solution state
     mdot: np.ndarray
 
@@ -137,13 +141,15 @@ class FVFields(Fields):
         )
 
 
-#=====================================================
+# =====================================================
 # Spectral Data Classes
-#=====================================================
+# =====================================================
+
 
 @dataclass
 class SpectralInfo(MetaConfig):
     """Spectral-specific metadata with discretization parameters."""
+
     Nx: int = 64
     Ny: int = 64
     differentiation_method: str = "fft"  # 'fft', 'chebyshev', 'matrix'
@@ -152,5 +158,3 @@ class SpectralInfo(MetaConfig):
     dealiasing: bool = True
     multigrid: bool = False
     mg_levels: int = 3
-
-

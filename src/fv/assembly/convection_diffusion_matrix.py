@@ -3,6 +3,7 @@ from numba import njit
 
 from fv.discretization.convection.upwind import compute_convective_stencil
 
+
 @njit()
 def assemble_diffusion_convection_matrix(
     mesh,
@@ -17,17 +18,17 @@ def assemble_diffusion_convection_matrix(
     Optimized for memory access patterns with pre-fetched static data.
     """
 
-    n_cells     = mesh.cell_volumes.shape[0]
-    n_internal  = mesh.internal_faces.shape[0]
-    n_boundary  = mesh.boundary_faces.shape[0]
+    n_cells = mesh.cell_volumes.shape[0]
+    n_internal = mesh.internal_faces.shape[0]
+    n_boundary = mesh.boundary_faces.shape[0]
 
     # ––– pessimistic non-zero count ––––––––––––––––––––––––––––––––––––––––
     max_nnz = 8 * n_internal + 3 * n_boundary
-    row  = np.zeros(max_nnz, dtype=np.int64)
-    col  = np.zeros(max_nnz, dtype=np.int64)
+    row = np.zeros(max_nnz, dtype=np.int64)
+    col = np.zeros(max_nnz, dtype=np.int64)
     data = np.zeros(max_nnz, dtype=np.float64)
 
-    idx  = 0  # running write position
+    idx = 0  # running write position
     b = np.zeros(n_cells, dtype=np.float64)
 
     # ═══ PRE-FETCH STATIC DATA (HUGE MEMORY ACCESS OPTIMIZATION) ═══
@@ -54,22 +55,34 @@ def assemble_diffusion_convection_matrix(
         # —— orthogonal diffusion (inlined for clarity) ——
         vector_E_f = mesh.vector_S_f[f]
         vector_d_CE = mesh.vector_d_CE[f]
-        E_mag = np.sqrt(vector_E_f[0]**2 + vector_E_f[1]**2)
-        d_mag = np.sqrt(vector_d_CE[0]**2 + vector_d_CE[1]**2)
+        E_mag = np.sqrt(vector_E_f[0] ** 2 + vector_E_f[1] ** 2)
+        d_mag = np.sqrt(vector_d_CE[0] ** 2 + vector_d_CE[1] ** 2)
         geoDiff = E_mag / d_mag
         diffFlux_P_f = mu * geoDiff
         diffFlux_N_f = -mu * geoDiff
 
         # —— face fluxes —— Moukalled 15.72 ——
-        Flux_P_f =  convFlux_P_f + diffFlux_P_f
-        Flux_N_f =  convFlux_N_f + diffFlux_N_f
-        Flux_V_f = convDC  # diffDC is always 0 for orthogonal grids 
+        Flux_P_f = convFlux_P_f + diffFlux_P_f
+        Flux_N_f = convFlux_N_f + diffFlux_N_f
+        Flux_V_f = convDC  # diffDC is always 0 for orthogonal grids
 
         # Matrix assembly (using pre-fetched P, N)
-        row[idx] = P; col[idx] = P; data[idx] = Flux_P_f; idx += 1
-        row[idx] = P; col[idx] = N; data[idx] = Flux_N_f; idx += 1
-        row[idx] = N; col[idx] = N; data[idx] = -Flux_N_f; idx += 1
-        row[idx] = N; col[idx] = P; data[idx] = -Flux_P_f; idx += 1
+        row[idx] = P
+        col[idx] = P
+        data[idx] = Flux_P_f
+        idx += 1
+        row[idx] = P
+        col[idx] = N
+        data[idx] = Flux_N_f
+        idx += 1
+        row[idx] = N
+        col[idx] = N
+        data[idx] = -Flux_N_f
+        idx += 1
+        row[idx] = N
+        col[idx] = P
+        data[idx] = -Flux_P_f
+        idx += 1
 
         b[P] -= Flux_V_f
         b[N] += Flux_V_f
@@ -82,7 +95,7 @@ def assemble_diffusion_convection_matrix(
 
         # Diffusion flux (Dirichlet BC)
         E_f = mesh.vector_S_f[f]
-        E_mag = np.sqrt(E_f[0]**2 + E_f[1]**2)
+        E_mag = np.sqrt(E_f[0] ** 2 + E_f[1] ** 2)
         d_PB = mesh.d_Cb[f]
         diffFlux_P_b = mu * E_mag / d_PB
         diffFlux_N_b = -diffFlux_P_b * bc_val
@@ -91,8 +104,11 @@ def assemble_diffusion_convection_matrix(
         convFlux_P_b = mdot[f]
         convFlux_N_b = -mdot[f] * bc_val
 
-        row[idx] = P; col[idx] = P; data[idx] = (diffFlux_P_b + convFlux_P_b); idx += 1
-        b[P] -= (diffFlux_N_b + convFlux_N_b)
+        row[idx] = P
+        col[idx] = P
+        data[idx] = diffFlux_P_b + convFlux_P_b
+        idx += 1
+        b[P] -= diffFlux_N_b + convFlux_N_b
 
     # ––– trim overallocation –––––––––––––––––––––––––––––––––––––––––––––––
     return row[:idx], col[:idx], data[:idx], b

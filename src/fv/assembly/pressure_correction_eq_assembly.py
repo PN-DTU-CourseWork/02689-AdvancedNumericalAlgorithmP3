@@ -1,6 +1,7 @@
 import numpy as np
 from numba import njit
 
+
 @njit()
 def assemble_pressure_correction_matrix(mesh, rho):
     """
@@ -42,10 +43,21 @@ def assemble_pressure_correction_matrix(mesh, rho):
         D_f = rho * E_mag / d_mag
 
         # Matrix coefficients
-        row[idx] = P; col[idx] = P; data[idx] = D_f; idx += 1
-        row[idx] = P; col[idx] = N; data[idx] = -D_f; idx += 1
-        row[idx] = N; col[idx] = N; data[idx] = D_f; idx += 1
-        row[idx] = N; col[idx] = P; data[idx] = -D_f; idx += 1
+        row[idx] = P
+        col[idx] = P
+        data[idx] = D_f
+        idx += 1
+        row[idx] = P
+        col[idx] = N
+        data[idx] = -D_f
+        idx += 1
+        row[idx] = N
+        col[idx] = N
+        data[idx] = D_f
+        idx += 1
+        row[idx] = N
+        col[idx] = P
+        data[idx] = -D_f
+        idx += 1
 
     return row[:idx], col[:idx], data[:idx]
-
