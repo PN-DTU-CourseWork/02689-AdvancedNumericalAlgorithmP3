@@ -59,3 +59,7 @@ print(f"ENERGY: {energy}")
 print(f"palinstrophy: {palinstropy}")
 print(f"enstrophy: {enstrophy}")
 
+
+
+#TODO: Plot them as a function of iterations
+
