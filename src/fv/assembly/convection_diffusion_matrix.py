@@ -3,16 +3,14 @@ from numba import njit
 
 from fv.discretization.convection.upwind import compute_convective_stencil
 
-#@njit()
+@njit()
 def assemble_diffusion_convection_matrix(
     mesh,
     mdot,
-    grad_phi,
-    rho,
     mu,
     component_idx,
     phi,
-    scheme="Upwind",
+    scheme,
 ):
     """Assemble sparse matrix and RHS for steady-state collocated FV discretisation.
 

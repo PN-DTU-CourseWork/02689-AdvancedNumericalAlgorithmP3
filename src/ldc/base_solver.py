@@ -66,14 +66,6 @@ class LidDrivenCavitySolver(ABC):
         """
         pass
 
-    @abstractmethod
-    def _create_result_fields(self):
-        """Create result fields dataclass with solver-specific data.
-
-        Must return an instance of self.ResultFields.
-        """
-        pass
-
     def _store_results(self, residual_history, final_iter_count, is_converged):
         """Store solve results in self.fields, self.time_series, and self.metadata."""
         # Extract residuals
@@ -81,8 +73,6 @@ class LidDrivenCavitySolver(ABC):
         v_residuals = [r['v'] for r in residual_history]
         combined_residual = [max(r['u'], r['v']) for r in residual_history]
 
-        # Create fields (subclasses can override _create_result_fields)
-        self.fields = self._create_result_fields()
 
         # Create time series (same for all solvers)
         self.time_series = TimeSeries(
@@ -127,8 +117,8 @@ class LidDrivenCavitySolver(ABC):
             max_iter = self.config.max_iterations
 
         # Store previous iteration for residual calculation
-        u_prev = self.arrays.u.copy()
-        v_prev = self.arrays.v.copy()
+        u_prev = self.fields.u.copy()
+        v_prev = self.fields.v.copy()
 
         # Residual history
         residual_history = []
@@ -141,11 +131,11 @@ class LidDrivenCavitySolver(ABC):
             final_iter_count = i + 1
 
             # Perform one iteration
-            self.arrays.u, self.arrays.v, self.arrays.p = self.step()
+            self.step()
 
             # Calculate normalized solution change: ||u^{n+1} - u^n||_2 / ||u^n||_2
-            u_change_norm = np.linalg.norm(self.arrays.u - u_prev)
-            v_change_norm = np.linalg.norm(self.arrays.v - v_prev)
+            u_change_norm = np.linalg.norm(self.fields.u - u_prev)
+            v_change_norm = np.linalg.norm(self.fields.v - v_prev)
 
             u_prev_norm = np.linalg.norm(u_prev) + 1e-12
             v_prev_norm = np.linalg.norm(v_prev) + 1e-12
@@ -158,8 +148,8 @@ class LidDrivenCavitySolver(ABC):
                 residual_history.append({'u': u_residual, 'v': v_residual})
 
             # Update previous iteration
-            u_prev = self.arrays.u.copy()
-            v_prev = self.arrays.v.copy()
+            u_prev = self.fields.u.copy()
+            v_prev = self.fields.v.copy()
 
             # Check convergence (only after warmup period)
             if i >= 10:

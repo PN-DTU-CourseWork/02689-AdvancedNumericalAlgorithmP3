@@ -4,7 +4,7 @@ from numba import njit
 def MUSCL(r):
     return max(0.0, min(2.0, 2.0 * r, 0.5 * (1 + r))) if r > 0 else 0.0
 
-#@njit()
+@njit()
 def compute_convective_stencil(
     f, mesh, mdot,
     phi, scheme 

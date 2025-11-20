@@ -66,10 +66,8 @@ class FVSolver(LidDrivenCavitySolver):
         self.mu = self.rho * self.config.lid_velocity * self.config.Lx / self.config.Re
 
         # Allocate all solver arrays
-        self.arrays = FVFields.allocate(n_cells, n_faces)
+        self.fields = FVFields.allocate(n_cells, n_faces)
 
-        # Linear solver settings
-        self.linear_solver_settings = {'type': 'bcgs', 'preconditioner': 'hypre', 'tolerance': 1e-8, 'max_iterations': 10000}
 
         # Cache commonly used values
         self.n_cells = n_cells
@@ -99,7 +97,7 @@ class FVSolver(LidDrivenCavitySolver):
         """
         # Assemble momentum equation
         row, col, data, b = assemble_diffusion_convection_matrix(
-            self.mesh, self.arrays.mdot, grad_phi, self.rho, self.mu,
+            self.mesh, self.fields.mdot, self.mu,
             component_idx, phi=phi,
             scheme=self.config.convection_scheme
         )
@@ -124,7 +122,7 @@ class FVSolver(LidDrivenCavitySolver):
         u, v, p : np.ndarray
             Updated velocity and pressure fields
         """
-        a = self.arrays  # Shorthand for readability
+        a = self.fields# Shorthand for readability
 
         # Swap buffers at start (zero-copy)
         a.u, a.u_prev = a.u_prev, a.u
@@ -173,18 +171,3 @@ class FVSolver(LidDrivenCavitySolver):
         # No copy needed! u and v now have new values, u_prev and v_prev have old values
         # Next iteration they will swap again
 
-        return a.u, a.v, a.p
-
-    def _create_result_fields(self):
-        """Create FV-specific result fields with mesh data and mdot."""
-        from .datastructures import Fields
-        return Fields(
-            u=self.arrays.u,
-            v=self.arrays.v,
-            p=self.arrays.p,
-            x=self.mesh.cell_centers[:, 0],
-            y=self.mesh.cell_centers[:, 1],
-            grid_points=self.mesh.cell_centers,
-            u_prev=self.arrays.u_prev,
-            v_prev=self.arrays.v_prev,
-        )
