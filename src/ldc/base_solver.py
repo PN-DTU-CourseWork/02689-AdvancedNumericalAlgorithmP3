@@ -167,7 +167,7 @@ class LidDrivenCavitySolver(ABC):
             else:
                 is_converged = False
 
-            if i % 10 == 0 or is_converged:
+            if i % 50 == 0 or is_converged:
                 print(f"Iteration {i}: u_res={u_residual:.6e}, v_res={v_residual:.6e}")
 
             if is_converged:
