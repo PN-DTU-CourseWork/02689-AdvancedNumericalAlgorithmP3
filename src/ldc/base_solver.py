@@ -180,56 +180,21 @@ class LidDrivenCavitySolver(ABC):
         self._store_results(residual_history, final_iter_count, is_converged)
 
     def save(self, filepath):
-        """Save results to HDF5 file.
+        """Save results to HDF5 file using pandas HDFStore.
 
         Parameters
         ----------
         filepath : str or Path
             Output file path.
         """
-        from dataclasses import asdict
-        import h5py
         from pathlib import Path
+        import pandas as pd
 
         filepath = Path(filepath)
         filepath.parent.mkdir(parents=True, exist_ok=True)
 
-        # Convert dataclasses to dicts
-        fields_dict = asdict(self.fields)
-        time_series_dict = asdict(self.time_series)
-        metadata_dict = asdict(self.metadata)
-
-        with h5py.File(filepath, "w") as f:
-            # Save metadata as root-level attributes
-            for key, val in metadata_dict.items():
-                # Skip None values and convert to appropriate types
-                if val is None:
-                    continue
-                # Convert strings to bytes for HDF5 compatibility
-                if isinstance(val, str):
-                    f.attrs[key] = val
-                else:
-                    f.attrs[key] = val
-
-            # Save fields in a fields group
-            fields_grp = f.create_group("fields")
-            for key, val in fields_dict.items():
-                fields_grp.create_dataset(key, data=val)
-
-            # Add velocity magnitude if u and v are present
-            if "u" in fields_dict and "v" in fields_dict:
-                import numpy as np
-
-                vel_mag = np.sqrt(fields_dict["u"] ** 2 + fields_dict["v"] ** 2)
-                fields_grp.create_dataset("velocity_magnitude", data=vel_mag)
-
-            # Save grid_points at root level for compatibility
-            if "grid_points" in fields_dict:
-                f.create_dataset("grid_points", data=fields_dict["grid_points"])
-
-            # Save time series in a group
-            if time_series_dict:
-                ts_grp = f.create_group("time_series")
-                for key, val in time_series_dict.items():
-                    if val is not None:
-                        ts_grp.create_dataset(key, data=val)
+        # Convert dataclasses to DataFrames
+        with pd.HDFStore(filepath, 'w') as store:
+            store['metadata'] = self.metadata.to_dataframe()
+            store['fields'] = self.fields.to_dataframe()
+            store['time_series'] = self.time_series.to_dataframe()

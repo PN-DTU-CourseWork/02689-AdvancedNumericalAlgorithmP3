@@ -4,10 +4,11 @@ This module defines the configuration and result data structures
 for lid-driven cavity solvers (both FV and spectral).
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from typing import Optional, List
 
 import numpy as np
+import pandas as pd
 
 # ========================================================
 # Shared Data Classes
@@ -28,6 +29,24 @@ class Fields:
     u_prev: np.ndarray
     v_prev: np.ndarray
 
+    def to_dataframe(self) -> pd.DataFrame:
+        """Convert fields to DataFrame for analysis and plotting.
+
+        Returns
+        -------
+        pd.DataFrame
+            Wide-format DataFrame with columns: x, y, u, v, p.
+            Each row represents one grid point.
+            Excludes grid_points, u_prev, v_prev since they're not needed for analysis.
+        """
+        data = asdict(self)
+        # Remove grid_points and previous iteration fields
+        data.pop('grid_points', None)
+        data.pop('u_prev', None)
+        data.pop('v_prev', None)
+        data.pop('mdot', None)  # May not exist in all subclasses
+        return pd.DataFrame(data)
+
 
 @dataclass
 class TimeSeries:
@@ -38,6 +57,17 @@ class TimeSeries:
     v_residual: List[float]
     continuity_residual: Optional[List[float]]
     # TODO: Add the quantities stuff from the paper
+
+    def to_dataframe(self) -> pd.DataFrame:
+        """Convert time series to DataFrame for analysis and plotting.
+
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame with columns for each residual type.
+            Index represents iteration number.
+        """
+        return pd.DataFrame(asdict(self))
 
 
 @dataclass
@@ -65,6 +95,16 @@ class MetaConfig:
     iterations: int = 0
     converged: bool = False
     final_residual: float = 10000
+
+    def to_dataframe(self) -> pd.DataFrame:
+        """Convert config/metadata to single-row DataFrame.
+
+        Returns
+        -------
+        pd.DataFrame
+            Single-row DataFrame with all configuration and metadata fields.
+        """
+        return pd.DataFrame([asdict(self)])
 
 
 # =============================================================
