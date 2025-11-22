@@ -38,6 +38,7 @@ dependencies = [
   "pyvista>=0.46.4",
   "h5py>=3.15.1",
   "snakeviz>=2.2.2",
+  "tables>=3.10.2",
 ]
 
 [tool.setuptools]
